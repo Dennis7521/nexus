@@ -1,0 +1,51 @@
+# Dependencies
+node_modules
+.pnp
+.pnp.js
+
+# Build outputs
+dist
+dist-ssr
+*.local
+build
+
+# Environment files - NEVER commit these
+.env
+.env.local
+.env.*.local
+!.env.example
+!.env.*.example
+
+# Logs
+logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+# Editor directories and files
+.vscode/*
+!.vscode/extensions.json
+!.vscode/settings.json
+.idea
+.DS_Store
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
+# OS files
+Thumbs.db
+
+# Database files
+*.sqlite
+*.sqlite3
+
+# Uploads (except default placeholders)
+backend/uploads/profile-pictures/*
+!backend/uploads/profile-pictures/.gitkeep
+backend/uploads/transcripts/*
+!backend/uploads/transcripts/.gitkeep
