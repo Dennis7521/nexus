@@ -13,6 +13,10 @@ require('dotenv').config();
 const app = express();
 const PORT = process.env.PORT || 5000;
 
+// TEST: Absolute simplest route - register FIRST
+app.get('/test', (req, res) => res.json({ test: 'OK' }));
+app.get('/api/test', (req, res) => res.json({ apiTest: 'OK' }));
+
 // Security middleware
 app.use(helmet());
 
