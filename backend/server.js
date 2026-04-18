@@ -149,19 +149,36 @@ app.get('/api/db-test', async (req, res) => {
 });
 
 // API Routes - Real authentication enabled
-app.use('/api/auth', require('./routes/auth'));
-app.use('/api/skills', require('./routes/skills'));
-app.use('/api/matches', require('./routes/matches'));
-app.use('/api/matching', require('./routes/matching'));
-app.use('/api/exchanges', require('./routes/exchanges'));
-app.use('/api/messages', require('./routes/messages'));
-app.use('/api/users', require('./routes/users'));
-app.use('/api/notifications', require('./routes/notifications'));
-app.use('/api/transactions', require('./routes/transactions'));
-app.use('/api/reports', require('./routes/reports'));
-app.use('/api/sync-exchanges', require('./routes/syncExchanges'));
-app.use('/api/payments', require('./routes/payments'));
-app.use('/api/admin', require('./routes/admin'));
+// Debug: Log route loading
+console.log('Loading routes...');
+
+const routes = [
+  { path: '/api/auth', module: './routes/auth', name: 'auth' },
+  { path: '/api/skills', module: './routes/skills', name: 'skills' },
+  { path: '/api/matches', module: './routes/matches', name: 'matches' },
+  { path: '/api/matching', module: './routes/matching', name: 'matching' },
+  { path: '/api/exchanges', module: './routes/exchanges', name: 'exchanges' },
+  { path: '/api/messages', module: './routes/messages', name: 'messages' },
+  { path: '/api/users', module: './routes/users', name: 'users' },
+  { path: '/api/notifications', module: './routes/notifications', name: 'notifications' },
+  { path: '/api/transactions', module: './routes/transactions', name: 'transactions' },
+  { path: '/api/reports', module: './routes/reports', name: 'reports' },
+  { path: '/api/sync-exchanges', module: './routes/syncExchanges', name: 'sync-exchanges' },
+  { path: '/api/payments', module: './routes/payments', name: 'payments' },
+  { path: '/api/admin', module: './routes/admin', name: 'admin' }
+];
+
+routes.forEach(({ path, module, name }) => {
+  try {
+    const router = require(module);
+    app.use(path, router);
+    console.log(`✓ ${name} routes loaded at ${path}`);
+  } catch (error) {
+    console.error(`✗ ${name} routes FAILED:`, error.message);
+  }
+});
+
+console.log('Routes loading complete.');
 
 // Error handling middleware
 app.use((err, req, res, next) => {
