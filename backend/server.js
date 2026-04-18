@@ -114,10 +114,7 @@ app.get('/uploads/transcripts/:filename', authenticateToken, async (req, res) =>
   }
 });
 
-// Logging middleware
-app.use(morgan('combined'));
-
-// Health check endpoint
+// Health check endpoint (BEFORE logging to ensure it works)
 app.get('/api/health', (req, res) => {
   res.json({ 
     status: 'OK', 
@@ -125,6 +122,9 @@ app.get('/api/health', (req, res) => {
     timestamp: new Date().toISOString()
   });
 });
+
+// Logging middleware
+app.use(morgan('combined'));
 
 // Database connection test endpoint
 app.get('/api/db-test', async (req, res) => {
