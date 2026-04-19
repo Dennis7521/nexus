@@ -6,13 +6,9 @@ const ExchangeSession = require('../models/ExchangeSession');
 const { authenticateToken } = require('../middleware/auth');
 
 // Get user's exchange requests (frontend expects this endpoint)
-router.get('/requests', async (req, res) => {
+router.get('/requests', authenticateToken, async (req, res) => {
   try {
-    const { userId } = req.query;
-    
-    if (!userId) {
-      return res.json({ incoming: [], outgoing: [] });
-    }
+    const userId = req.user.id;
     
     // Get incoming requests (where user is the instructor)
     const incomingResult = await query(
@@ -50,8 +46,8 @@ router.get('/requests', async (req, res) => {
   }
 });
 
-// Get user ID by name (for demo purposes)
-router.get('/find-user/:firstName/:lastName', async (req, res) => {
+// Get user ID by name
+router.get('/find-user/:firstName/:lastName', authenticateToken, async (req, res) => {
   try {
     const { firstName, lastName } = req.params;
     
@@ -115,9 +111,9 @@ router.post('/request', authenticateToken, async (req, res) => {
 });
 
 // Get user's exchange requests
-router.get('/requests/:userId', async (req, res) => {
+router.get('/requests/:userId', authenticateToken, async (req, res) => {
   try {
-    const { userId } = req.params;
+    const userId = req.user.id;
     
     // Get incoming requests (where user is the instructor)
     const incomingResult = await query(
@@ -228,22 +224,23 @@ router.get('/completed', authenticateToken, async (req, res) => {
     
     res.json({ exchanges });
   } catch (error) {
-    console.error('❌ Error fetching completed exchanges:', error);
+    console.error('ERROR: Error fetching completed exchanges:', error);
     res.status(500).json({ message: 'Failed to fetch completed exchanges' });
   }
 });
 
 // Complete exchange (mark as completed)
-router.put('/complete/:exchangeId', async (req, res) => {
+router.put('/complete/:exchangeId', authenticateToken, async (req, res) => {
   try {
     const { exchangeId } = req.params;
+    const userId = req.user.id;
     
     const result = await query(
       `UPDATE exchange_requests 
        SET status = 'completed', updated_at = CURRENT_TIMESTAMP
-       WHERE id = $1 AND status = 'accepted'
+       WHERE id = $1 AND status = 'accepted' AND (requester_id = $2 OR instructor_id = $2)
        RETURNING *`,
-      [exchangeId]
+      [exchangeId, userId]
     );
     
     if (result.rows.length === 0) {
@@ -502,24 +499,22 @@ router.post('/:exchangeId/review', authenticateToken, async (req, res) => {
       return res.status(403).json({ message: 'Only the learner can submit a review' });
     }
 
-    // Check if a review already exists
-    const existing = await query(
-      'SELECT id FROM exchange_reviews WHERE exchange_request_id = $1 AND reviewer_id = $2',
-      [exchangeId, reviewerId]
-    );
-
-    if (existing.rows.length > 0) {
-      return res.status(400).json({ message: 'You have already reviewed this exchange' });
-    }
-
-    // Insert the review
+    // Atomically insert only if no review already exists for this (exchange, reviewer) pair
     const reviewResult = await query(
       `INSERT INTO exchange_reviews
          (exchange_request_id, reviewer_id, reviewee_id, skill_title, rating, comment)
-       VALUES ($1, $2, $3, $4, $5, $6)
+       SELECT $1, $2, $3, $4, $5, $6
+       WHERE NOT EXISTS (
+         SELECT 1 FROM exchange_reviews
+         WHERE exchange_request_id = $1 AND reviewer_id = $2
+       )
        RETURNING *`,
       [exchangeId, reviewerId, exchange.instructor_id, exchange.skill_title, rating, comment || null]
     );
+
+    if (reviewResult.rows.length === 0) {
+      return res.status(400).json({ message: 'You have already reviewed this exchange' });
+    }
 
     res.status(201).json({
       message: 'Review submitted successfully',

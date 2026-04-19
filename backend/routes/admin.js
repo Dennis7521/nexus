@@ -2,13 +2,10 @@ const express = require('express');
 const router = express.Router();
 const { pool } = require('../config/database');
 const bcrypt = require('bcryptjs');
-const crypto = require('crypto');
 const { generateToken } = require('../middleware/auth');
 const { authenticateAdmin } = require('../middleware/adminAuth');
 const Admin = require('../models/Admin');
-const PasswordReset = require('../models/PasswordReset');
 const Report = require('../models/Report');
-const emailService = require('../services/emailService');
 const fs = require('fs');
 const path = require('path');
 const { generateAsyncMatchesForAllUsers, detectCyclesForAllUsers, runAllMatchingJobs } = require('../jobs/matchingJobs');
@@ -311,106 +308,6 @@ router.delete('/delete-account', authenticateAdmin, async (req, res) => {
   }
 });
 
-// Get all password reset requests (admin only)
-router.get('/password-reset-requests', authenticateAdmin, async (req, res) => {
-  try {
-    const { status } = req.query;
-    const requests = await PasswordReset.getAllRequests(status || null);
-    res.json(requests);
-  } catch (error) {
-    console.error('Error fetching password reset requests:', error);
-    res.status(500).json({ error: 'Failed to fetch password reset requests' });
-  }
-});
-
-// Get pending password reset requests count (admin only)
-router.get('/password-reset-requests/pending/count', authenticateAdmin, async (req, res) => {
-  try {
-    const count = await PasswordReset.getPendingCount();
-    res.json({ count });
-  } catch (error) {
-    console.error('Error fetching pending count:', error);
-    res.status(500).json({ error: 'Failed to fetch pending count' });
-  }
-});
-
-// Approve password reset request and send temporary password (admin only)
-router.post('/approve-password-reset', authenticateAdmin, async (req, res) => {
-  try {
-    const { requestId, notes } = req.body;
-
-    if (!requestId) {
-      return res.status(400).json({ error: 'Request ID is required' });
-    }
-
-    // Get the request details
-    const request = await PasswordReset.getRequestById(requestId);
-    if (!request) {
-      return res.status(404).json({ error: 'Password reset request not found' });
-    }
-
-    // Generate a secure temporary password
-    const tempPassword = crypto.randomBytes(8).toString('hex'); // 16 character hex string
-    console.log('🔑 Generated temporary password:', tempPassword);
-    const hashedTempPassword = await bcrypt.hash(tempPassword, 10);
-    console.log('🔒 Hashed temporary password (first 20 chars):', hashedTempPassword.substring(0, 20));
-
-    // Approve the request and update user password
-    await PasswordReset.approveRequest(
-      requestId,
-      req.admin.id,
-      hashedTempPassword,
-      notes
-    );
-    console.log('✅ Password updated in database for user:', request.email);
-
-    // Send temporary password to user's email
-    const emailResult = await emailService.sendPasswordResetEmail(
-      request.email,
-      `${request.first_name} ${request.last_name}`,
-      tempPassword
-    );
-    console.log('📧 Email sent with temporary password:', tempPassword);
-
-    if (!emailResult.success) {
-      console.error('Failed to send password reset email:', emailResult.error);
-      return res.status(500).json({
-        error: 'Password was reset but failed to send email. Please contact the user directly.',
-        tempPassword: tempPassword // Include in response as fallback
-      });
-    }
-
-    res.json({
-      message: 'Password reset approved and temporary password sent to user',
-      email: request.email
-    });
-
-  } catch (error) {
-    console.error('Error approving password reset:', error);
-    res.status(500).json({ error: 'Failed to approve password reset' });
-  }
-});
-
-// Reject password reset request (admin only)
-router.post('/reject-password-reset', authenticateAdmin, async (req, res) => {
-  try {
-    const { requestId, notes } = req.body;
-
-    if (!requestId) {
-      return res.status(400).json({ error: 'Request ID is required' });
-    }
-
-    await PasswordReset.rejectRequest(requestId, req.admin.id, notes);
-
-    res.json({
-      message: 'Password reset request rejected'
-    });
-
-  } catch (error) {
-    console.error('Error rejecting password reset:', error);
-    res.status(500).json({ error: 'Failed to reject password reset' });
-  }
-});
 
 // ==================== REPORT MANAGEMENT ROUTES ====================
 

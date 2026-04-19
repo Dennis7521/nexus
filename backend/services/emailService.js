@@ -5,14 +5,14 @@ class EmailService {
   constructor() {
     // Initialize Resend with API key
     if (!process.env.RESEND_API_KEY) {
-      console.error('⚠️  RESEND_API_KEY not found in environment variables');
-      console.error('⚠️  Email service will not work. Please add RESEND_API_KEY to .env file');
+      console.error('WARNING: RESEND_API_KEY not found in environment variables');
+      console.error('WARNING: Email service will not work. Please add RESEND_API_KEY to .env file');
     }
     
     this.resend = new Resend(process.env.RESEND_API_KEY);
     this.fromEmail = process.env.RESEND_FROM_EMAIL || 'NEXUS <onboarding@resend.dev>';
     
-    console.log('✅ Resend email service initialized');
+    console.log('SUCCESS: Resend email service initialized');
   }
 
   // Send OTP email
@@ -29,21 +29,21 @@ class EmailService {
       });
 
       if (error) {
-        console.error('❌ Resend API error:', error);
+        console.error('ERROR: Resend API error:', error);
         return { 
           success: false, 
           error: error.message || 'Failed to send email'
         };
       }
 
-      console.log('✅ OTP email sent successfully:', data.id);
+      console.log('SUCCESS: OTP email sent successfully:', data.id);
       return { 
         success: true, 
         messageId: data.id 
       };
       
     } catch (error) {
-      console.error('❌ Failed to send OTP email:', error);
+      console.error('ERROR: Failed to send OTP email:', error);
       return { 
         success: false, 
         error: error.message || 'Failed to send email'
@@ -181,21 +181,21 @@ class EmailService {
       });
 
       if (error) {
-        console.error('❌ Resend API error:', error);
+        console.error('ERROR: Resend API error:', error);
         return { 
           success: false, 
           error: error.message || 'Failed to send email'
         };
       }
 
-      console.log('✅ Password reset email sent successfully:', data.id);
+      console.log('SUCCESS: Password reset email sent successfully:', data.id);
       return { 
         success: true, 
         messageId: data.id 
       };
       
     } catch (error) {
-      console.error('❌ Failed to send password reset email:', error);
+      console.error('ERROR: Failed to send password reset email:', error);
       return { 
         success: false, 
         error: error.message || 'Failed to send email'
@@ -324,14 +324,14 @@ class EmailService {
       });
 
       if (error) {
-        console.error('❌ Resend API error (receipt):', error);
+        console.error('ERROR: Resend API error (receipt):', error);
         return { success: false, error: error.message };
       }
 
-      console.log('✅ Purchase receipt email sent:', data.id);
+      console.log('SUCCESS: Purchase receipt email sent:', data.id);
       return { success: true, messageId: data.id };
     } catch (error) {
-      console.error('❌ Failed to send purchase receipt email:', error);
+      console.error('ERROR: Failed to send purchase receipt email:', error);
       return { success: false, error: error.message };
     }
   }
@@ -439,14 +439,14 @@ class EmailService {
       });
 
       if (error) {
-        console.error('❌ Resend API error (welcome deposit):', error);
+        console.error('ERROR: Resend API error (welcome deposit):', error);
         return { success: false, error: error.message };
       }
 
-      console.log('✅ Welcome deposit email sent:', data.id);
+      console.log('SUCCESS: Welcome deposit email sent:', data.id);
       return { success: true, messageId: data.id };
     } catch (error) {
-      console.error('❌ Failed to send welcome deposit email:', error);
+      console.error('ERROR: Failed to send welcome deposit email:', error);
       return { success: false, error: error.message };
     }
   }
@@ -540,13 +540,13 @@ class EmailService {
     try {
       // Resend doesn't have a verify method, but we can check if API key exists
       if (!process.env.RESEND_API_KEY) {
-        console.error('❌ RESEND_API_KEY not configured');
+        console.error('ERROR: RESEND_API_KEY not configured');
         return false;
       }
-      console.log('✅ Resend email service is configured');
+      console.log('SUCCESS: Resend email service is configured');
       return true;
     } catch (error) {
-      console.error('❌ Email service configuration error:', error);
+      console.error('ERROR: Email service configuration error:', error);
       return false;
     }
   }

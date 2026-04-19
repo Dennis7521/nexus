@@ -8,12 +8,12 @@ router.get('/async/:skill', authenticateToken, async (req, res) => {
   const limit = Number(req.query.limit || 10);
   if (!skill) return res.status(400).json({ message: 'Skill required' });
   try {
-    console.log(`🔍 Finding matches for skill: "${skill}", user: ${req.user.id}, limit: ${limit}`);
+    console.log(`Finding matches for skill: "${skill}", user: ${req.user.id}, limit: ${limit}`);
     const matches = await MatchingService.findAsyncMatches(req.user.id, skill, { limit });
-    console.log(`✅ Found ${matches.length} matches`);
+    console.log(`Found ${matches.length} matches`);
     res.json({ matches });
   } catch (error) {
-    console.error('❌ Match endpoint error:', error);
+    console.error('ERROR: Match endpoint error:', error);
     res.status(500).json({ message: 'Failed to fetch matches', error: error.message });
   }
 });
@@ -68,7 +68,7 @@ router.get('/suggestions', authenticateToken, async (req, res) => {
 
     res.json({ suggestions, total: suggestions.length });
   } catch (error) {
-    console.error('❌ Suggestions endpoint error:', error);
+    console.error('ERROR: Suggestions endpoint error:', error);
     res.status(500).json({ message: 'Failed to fetch suggestions', error: error.message });
   }
 });
@@ -94,7 +94,7 @@ router.post('/:matchId/contact', authenticateToken, async (req, res) => {
 
     res.json({ message: 'Match status updated', match: result.rows[0] });
   } catch (error) {
-    console.error('❌ Contact endpoint error:', error);
+    console.error('ERROR: Contact endpoint error:', error);
     res.status(500).json({ message: 'Failed to update match status', error: error.message });
   }
 });
@@ -120,7 +120,7 @@ router.get('/cycles', authenticateToken, async (req, res) => {
 
     res.json({ cycles: filteredCycles, total: filteredCycles.length });
   } catch (error) {
-    console.error('❌ Cycles endpoint error:', error);
+    console.error('ERROR: Cycles endpoint error:', error);
     res.status(500).json({ message: 'Failed to find cycles', error: error.message });
   }
 });
@@ -162,7 +162,7 @@ router.get('/cycles/my', authenticateToken, async (req, res) => {
         if (participants.length > 0) {
           const isDuplicate = await MatchingService.hasCompletedCycle(participants);
           if (isDuplicate) {
-            console.log(`🔄 Filtering proposed cycle ${cycle.id}: same participants already completed a cycle`);
+            console.log(`Filtering proposed cycle ${cycle.id}: same participants already completed a cycle`);
             continue;
           }
         }
@@ -200,7 +200,7 @@ router.get('/cycles/my', authenticateToken, async (req, res) => {
 
     res.json({ cycles: enrichedCycles, total: enrichedCycles.length });
   } catch (error) {
-    console.error('❌ My cycles endpoint error:', error);
+    console.error('ERROR: My cycles endpoint error:', error);
     res.status(500).json({ message: 'Failed to fetch cycles', error: error.message });
   }
 });
@@ -247,7 +247,7 @@ router.post('/cycles/:cycleId/respond', authenticateToken, async (req, res) => {
     res.json({ message: 'Response recorded', cycleStatus });
   } catch (error) {
     await client.query('ROLLBACK');
-    console.error('❌ Cycle response error:', error);
+    console.error('ERROR: Cycle response error:', error);
     res.status(500).json({ message: 'Failed to respond to cycle', error: error.message });
   } finally {
     client.release();

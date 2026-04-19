@@ -67,7 +67,7 @@ router.get('/cycles/my', authenticateToken, async (req, res) => {
         if (participants.length > 0) {
           const isDuplicate = await MatchingService.hasCompletedCycle(participants);
           if (isDuplicate) {
-            console.log(`🔄 Filtering proposed cycle ${cycle.id}: same participants already completed a cycle`);
+            console.log(`Filtering proposed cycle ${cycle.id}: same participants already completed a cycle`);
             continue;
           }
         }
@@ -215,25 +215,25 @@ router.post('/:cycleId/set-session-count', authenticateToken, async (req, res) =
   }
 
   try {
-    // Verify user is a participant and cycle is active with session_count not yet set (still default 0 or null)
-    const check = await query(
-      `SELECT ec.id, ec.session_count, ec.status
-       FROM exchange_cycles ec
-       JOIN cycle_participants cp ON cp.cycle_id = ec.id AND cp.user_id = $1
-       WHERE ec.id = $2 AND ec.status = 'active'`,
-      [userId, cycleId]
+    const updateResult = await query(
+      `UPDATE exchange_cycles SET session_count = $1
+       WHERE id = $2 AND session_count = 0 AND status = 'active'
+         AND EXISTS (SELECT 1 FROM cycle_participants WHERE cycle_id = $2 AND user_id = $3)`,
+      [sessionCount, cycleId, userId]
     );
-    if (check.rows.length === 0) {
-      return res.status(404).json({ message: 'Active cycle not found or access denied' });
-    }
-    if (check.rows[0].session_count > 0) {
+
+    if (updateResult.rowCount === 0) {
+      const check = await query(
+        `SELECT ec.session_count FROM exchange_cycles ec
+         JOIN cycle_participants cp ON cp.cycle_id = ec.id AND cp.user_id = $1
+         WHERE ec.id = $2 AND ec.status = 'active'`,
+        [userId, cycleId]
+      );
+      if (check.rows.length === 0) {
+        return res.status(404).json({ message: 'Active cycle not found or access denied' });
+      }
       return res.status(409).json({ message: 'Session count has already been set' });
     }
-
-    await query(
-      `UPDATE exchange_cycles SET session_count = $1 WHERE id = $2`,
-      [sessionCount, cycleId]
-    );
 
     res.json({ message: 'Session count set', sessionCount });
   } catch (err) {
@@ -256,30 +256,38 @@ router.post('/:cycleId/set-pair-session-count', authenticateToken, async (req, r
   }
 
   try {
-    // Verify user is the teacher of this pair (position_in_cycle === pairIndex)
-    const check = await query(
-      `SELECT cp.position_in_cycle, ec.status, ec.pair_session_counts
-       FROM exchange_cycles ec
-       JOIN cycle_participants cp ON cp.cycle_id = ec.id AND cp.user_id = $1
-       WHERE ec.id = $2 AND ec.status = 'active'`,
-      [userId, cycleId]
+    const updateResult = await query(
+      `UPDATE exchange_cycles
+       SET pair_session_counts = COALESCE(pair_session_counts, '{}') ||
+           jsonb_build_object($1::text, $2::int)
+       WHERE id = $3 AND status = 'active'
+         AND EXISTS (
+           SELECT 1 FROM cycle_participants
+           WHERE cycle_id = $3 AND user_id = $4 AND position_in_cycle = $5
+         )`,
+      [String(pairIndex), sessionCount, cycleId, userId, pairIndex]
     );
-    if (check.rows.length === 0) {
-      return res.status(404).json({ message: 'Active cycle not found or access denied' });
-    }
-    if (check.rows[0].position_in_cycle !== pairIndex) {
+
+    if (updateResult.rowCount === 0) {
+      const check = await query(
+        `SELECT cp.position_in_cycle FROM exchange_cycles ec
+         JOIN cycle_participants cp ON cp.cycle_id = ec.id AND cp.user_id = $1
+         WHERE ec.id = $2 AND ec.status = 'active'`,
+        [userId, cycleId]
+      );
+      if (check.rows.length === 0) {
+        return res.status(404).json({ message: 'Active cycle not found or access denied' });
+      }
       return res.status(403).json({ message: 'Only the instructor of this skill pair can set its session count' });
     }
 
-    const existing = check.rows[0].pair_session_counts || {};
-    const updated = { ...existing, [pairIndex]: sessionCount };
-
-    await query(
-      `UPDATE exchange_cycles SET pair_session_counts = $1 WHERE id = $2`,
-      [JSON.stringify(updated), cycleId]
+    const updatedRes = await query(
+      `SELECT pair_session_counts FROM exchange_cycles WHERE id = $1`,
+      [cycleId]
     );
+    const pair_session_counts = updatedRes.rows[0]?.pair_session_counts || {};
 
-    res.json({ message: 'Pair session count set', pairIndex, sessionCount, pair_session_counts: updated });
+    res.json({ message: 'Pair session count set', pairIndex, sessionCount, pair_session_counts });
   } catch (err) {
     console.error('POST /sync-exchanges/:id/set-pair-session-count error:', err);
     res.status(500).json({ message: err.message });
@@ -345,12 +353,14 @@ router.post('/:cycleId/sessions', authenticateToken, async (req, res) => {
   try {
     await client.query('BEGIN');
 
-    // Verify user is participant and cycle is active
+    // Verify user is participant and cycle is active; lock the cycle row to
+    // serialise concurrent session creation and prevent duplicate session_index values
     const cycleCheck = await client.query(
       `SELECT ec.id, ec.session_count, ec.current_session_index, ec.status
        FROM exchange_cycles ec
        JOIN cycle_participants cp ON cp.cycle_id = ec.id AND cp.user_id = $1
-       WHERE ec.id = $2 AND ec.status = 'active'`,
+       WHERE ec.id = $2 AND ec.status = 'active'
+       FOR UPDATE OF ec`,
       [userId, cycleId]
     );
     if (cycleCheck.rows.length === 0) {

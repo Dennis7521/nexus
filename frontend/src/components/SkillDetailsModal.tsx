@@ -14,12 +14,9 @@ interface SkillDetailsModalProps {
     difficulty_level: string;
     time_commitment_hours: number;
     time_commitment_period: string;
-    location_type: string;
-    specific_location?: string;
     prerequisites?: string;
     tags?: string[];
     credits_required: number;
-    max_students?: number;
     first_name: string;
     last_name: string;
     instructor_rating: number;
@@ -44,12 +41,6 @@ export const SkillDetailsModal: React.FC<SkillDetailsModalProps> = ({ isOpen, on
     }
   };
 
-  const getLocationDisplay = () => {
-    if (skill.location_type === 'on_campus' && skill.specific_location) {
-      return `On Campus - ${skill.specific_location}`;
-    }
-    return skill.location_type?.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase()) || 'Not specified';
-  };
 
   return (
     <>
@@ -165,7 +156,7 @@ export const SkillDetailsModal: React.FC<SkillDetailsModalProps> = ({ isOpen, on
                   </span>
                 </div>
                 <p className="text-sm" style={{ color: 'var(--gray-600)' }}>
-                  {getLocationDisplay()}
+                  Online
                 </p>
               </div>
 

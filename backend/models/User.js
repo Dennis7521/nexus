@@ -53,7 +53,8 @@ class User {
       `SELECT id, student_id, email, first_name, last_name, bio, degree_program, 
               year_of_study, profile_picture_url, transcript_url, time_credits, total_rating, 
               rating_count, skills_possessing, skills_interested_in, 
-              COALESCE(is_suspended, false) as is_suspended, created_at, updated_at
+              COALESCE(is_suspended, false) as is_suspended,
+              password_changed_at, created_at, updated_at
        FROM users WHERE id = $1 AND is_active = true`,
       [id]
     );
@@ -258,8 +259,32 @@ class User {
 
   // Get user's exchange history
   static async getExchangeHistory(userId, limit = 10, offset = 0) {
-    // Return empty array for now since we don't have exchange_requests table yet
-    return [];
+    const result = await query(
+      `SELECT 
+        er.id,
+        s.title as skill_title,
+        er.status,
+        er.total_credits,
+        er.created_at,
+        er.updated_at,
+        CASE 
+          WHEN er.requester_id = $1 THEN 'learner'
+          ELSE 'mentor'
+        END as role,
+        CASE 
+          WHEN er.requester_id = $1 THEN u2.first_name || ' ' || u2.last_name
+          ELSE u1.first_name || ' ' || u1.last_name
+        END as partner_name
+       FROM exchange_requests er
+       JOIN skills s ON er.skill_id = s.id
+       JOIN users u1 ON er.requester_id = u1.id
+       JOIN users u2 ON er.instructor_id = u2.id
+       WHERE (er.requester_id = $1 OR er.instructor_id = $1)
+       ORDER BY er.created_at DESC
+       LIMIT $2 OFFSET $3`,
+      [userId, limit, offset]
+    );
+    return result.rows;
   }
 
   // Deactivate user account
@@ -426,6 +451,7 @@ class User {
     const result = await query(
       `UPDATE users
        SET password_hash = $2,
+           password_changed_at = NOW(),
            updated_at = CURRENT_TIMESTAMP
        WHERE id = $1 AND is_active = true
        RETURNING id`,

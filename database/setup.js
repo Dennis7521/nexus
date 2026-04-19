@@ -14,7 +14,7 @@ async function setupDatabase() {
   });
 
   try {
-    console.log('🔗 Connecting to PostgreSQL...');
+    console.log('Connecting to PostgreSQL...');
     
     // Check if database exists
     const dbCheckResult = await adminPool.query(
@@ -23,11 +23,11 @@ async function setupDatabase() {
     );
 
     if (dbCheckResult.rows.length === 0) {
-      console.log('📦 Creating database...');
+      console.log('Creating database...');
       await adminPool.query(`CREATE DATABASE ${process.env.DB_NAME || 'nexus_db'}`);
-      console.log('✅ Database created successfully');
+      console.log('Database created successfully');
     } else {
-      console.log('✅ Database already exists');
+      console.log('Database already exists');
     }
 
     await adminPool.end();
@@ -44,9 +44,9 @@ async function setupDatabase() {
     // Try to enable pgcrypto for gen_random_uuid if available (non-fatal if it fails)
     try {
       await appPool.query('CREATE EXTENSION IF NOT EXISTS pgcrypto;');
-      console.log('🔑 pgcrypto extension ensured.');
+      console.log('pgcrypto extension ensured.');
     } catch (extErr) {
-      console.log('⚠️ Could not enable pgcrypto extension (non-fatal):', extErr.message);
+      console.log('WARNING: Could not enable pgcrypto extension (non-fatal):', extErr.message);
     }
 
     // Detect if core tables already exist; if so, skip schema and seed
@@ -56,79 +56,31 @@ async function setupDatabase() {
     const usersTableExists = usersTableCheck[0] && usersTableCheck[0].exists !== null;
 
     if (!usersTableExists) {
-      console.log('📋 Running database schema...');
+      console.log('Running database schema...');
       const schemaSQL = fs.readFileSync(path.join(__dirname, 'schema.sql'), 'utf8');
       await appPool.query(schemaSQL);
-      console.log('✅ Schema created successfully');
+      console.log('Schema created successfully');
     } else {
-      console.log('ℹ️ users table detected; skipping schema.sql application.');
-    }
-
-    // Apply SQL migrations from /database/migrations in alphabetical order
-    console.log('🧱 Running migrations from /database/migrations ...');
-    const migrationsDir = path.join(__dirname, 'migrations');
-    if (fs.existsSync(migrationsDir)) {
-      let files = fs
-        .readdirSync(migrationsDir)
-        .filter((f) => f.endsWith('.sql'))
-        .sort();
-
-      // Ensure dependency order: exchange_cycles before cycle_participants
-      const reorder = (arr, first, second) => {
-        const i = arr.indexOf(first);
-        const j = arr.indexOf(second);
-        if (i !== -1 && j !== -1 && i > j) {
-          // Move 'first' before 'second'
-          arr.splice(i, 1);
-          const newJ = arr.indexOf(second);
-          arr.splice(newJ, 0, first);
-        }
-      };
-      reorder(
-        files,
-        'create_exchange_cycles.sql',
-        'create_cycle_participants.sql'
-      );
-
-      for (const file of files) {
-        const filePath = path.join(migrationsDir, file);
-        const sql = fs.readFileSync(filePath, 'utf8');
-        console.log(`➡️  Applying migration: ${file}`);
-        try {
-          await appPool.query(sql);
-        } catch (migErr) {
-          // Postgres duplicate_object error code is 42710. Also catch common idempotency messages.
-          const msg = (migErr && migErr.message) ? migErr.message : '';
-          const isIdempotentIssue = migErr.code === '42710' || /already exists|duplicate|exists/i.test(msg);
-          if (isIdempotentIssue) {
-            console.log(`⚠️  Skipping idempotent migration error for ${file}: ${msg}`);
-            continue;
-          }
-          throw migErr;
-        }
-      }
-      console.log('✅ Migrations applied successfully');
-    } else {
-      console.log('ℹ️ No migrations directory found, skipping.');
+      console.log('INFO: users table detected; skipping schema.sql application.');
     }
 
     if (!usersTableExists) {
-      console.log('🌱 Seeding database with sample data...');
+      console.log('Seeding database with sample data...');
       const seedSQL = fs.readFileSync(path.join(__dirname, 'seed.sql'), 'utf8');
       await appPool.query(seedSQL);
-      console.log('✅ Database seeded successfully');
+      console.log('Database seeded successfully');
     } else {
-      console.log('ℹ️ Existing data detected; skipping seed.sql.');
+      console.log('INFO: Existing data detected; skipping seed.sql.');
     }
 
     await appPool.end();
-    console.log('🎉 Database setup completed!');
+    console.log('Database setup completed!');
     
   } catch (error) {
-    console.error('❌ Database setup failed:', error.message);
+    console.error('ERROR: Database setup failed:', error.message);
     
     if (error.code === 'ECONNREFUSED') {
-      console.log('\n💡 Make sure PostgreSQL is running on your system:');
+      console.log('\nNOTE: Make sure PostgreSQL is running on your system:');
       console.log('   - Windows: Check if PostgreSQL service is started');
       console.log('   - Or install PostgreSQL if not installed');
       console.log('   - Default credentials: username=postgres, password=password');

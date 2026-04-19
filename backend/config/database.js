@@ -10,16 +10,16 @@ const pool = new Pool({
   password: process.env.DB_PASSWORD || 'password',
   max: 20, // Maximum number of clients in the pool
   idleTimeoutMillis: 30000, // Close idle clients after 30 seconds
-  connectionTimeoutMillis: 2000, // Return an error after 2 seconds if connection could not be established
+  connectionTimeoutMillis: 8000, // Return an error after 8 seconds if connection could not be established
 });
 
 // Test database connection
 pool.on('connect', () => {
-  console.log('✅ Connected to PostgreSQL database');
+  console.log('Connected to PostgreSQL database');
 });
 
 pool.on('error', (err) => {
-  console.error('❌ Database connection error:', err);
+  console.error('ERROR: Database connection error:', err);
   // Don't exit - let the pool recover from transient errors
   // In production, this should trigger an alert/monitoring notification
 });
@@ -32,11 +32,11 @@ const query = async (text, params) => {
     const duration = Date.now() - start;
     // Only log queries in development (can leak sensitive data in production)
     if (process.env.NODE_ENV !== 'production') {
-      console.log('📊 Executed query', { text: text.substring(0, 100), duration, rows: res.rowCount });
+      console.log('Executed query', { text: text.substring(0, 100), duration, rows: res.rowCount });
     }
     return res;
   } catch (error) {
-    console.error('❌ Query error:', error);
+    console.error('ERROR: Query error:', error);
     throw error;
   }
 };

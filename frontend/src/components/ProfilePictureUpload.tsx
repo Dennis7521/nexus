@@ -66,23 +66,23 @@ export const ProfilePictureUpload: React.FC<ProfilePictureUploadProps> = ({
       }
 
       const data = await response.json();
-      console.log('📸 Frontend: Upload response:', data);
-      console.log('📸 Frontend: profilePictureUrl from backend:', data.profilePictureUrl);
+      console.log('Frontend: Upload response:', data);
+      console.log('Frontend: profilePictureUrl from backend:', data.profilePictureUrl);
       
       // Extract just the path (Vite proxy will handle the backend URL)
       const imageUrl = data.profilePictureUrl.startsWith('http')
         ? new URL(data.profilePictureUrl).pathname
         : data.profilePictureUrl;
       
-      console.log('📸 Frontend: Final imageUrl (proxied):', imageUrl);
-      console.log('📸 Frontend: Calling onImageChange with:', imageUrl);
+      console.log('Frontend: Final imageUrl (proxied):', imageUrl);
+      console.log('Frontend: Calling onImageChange with:', imageUrl);
       
       // Update preview and notify parent
       setPreviewUrl(imageUrl);
       onImageChange(imageUrl);
       setIsUploading(false);
       
-      console.log('📸 Frontend: Upload complete, preview updated');
+      console.log('Frontend: Upload complete, preview updated');
     } catch (error) {
       console.error('Upload error:', error);
       alert('Failed to upload profile picture. Please try again.');
@@ -113,7 +113,7 @@ export const ProfilePictureUpload: React.FC<ProfilePictureUploadProps> = ({
         fileInputRef.current.value = '';
       }
       
-      console.log('📸 Profile picture removed successfully');
+      console.log('Profile picture removed successfully');
     } catch (error) {
       console.error('Remove profile picture error:', error);
       alert('Failed to remove profile picture. Please try again.');

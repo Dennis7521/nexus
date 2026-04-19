@@ -21,7 +21,7 @@ export const Login: React.FC = () => {
     e.preventDefault();
     
     if (isNavigatingRef.current) {
-      console.log('⚠️ Already navigating, skipping...');
+      console.log('WARNING: Already navigating, skipping...');
       return;
     }
     
@@ -29,21 +29,21 @@ export const Login: React.FC = () => {
     setLoading(true);
 
     try {
-      console.log('🔐 Attempting login with email:', email);
+      console.log('Attempting login with email:', email);
       const result = await login(email, password);
-      console.log('✅ Login result:', result);
+      console.log('Login result:', result);
       
       // Check if user must change password
       if (result && result.mustChangePassword) {
-        console.log('🔑 Must change password - redirecting to /change-password');
+        console.log('Must change password - redirecting to /change-password');
         isNavigatingRef.current = true;
         navigate('/change-password', { replace: true });
         return;
       }
       
-      console.log('✅ Login successful - normal flow');
+      console.log('Login successful - normal flow');
     } catch (err: any) {
-      console.error('❌ Login error:', err);
+      console.error('Login error:', err);
       setError(err.message || 'Login failed');
     } finally {
       setLoading(false);

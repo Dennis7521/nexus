@@ -15,12 +15,9 @@ interface Skill {
   time_commitment_hours: number;
   time_commitment_period: string;
   location: string;
-  location_type: string;
-  specific_location?: string;
   prerequisites?: string;
   tags?: string[];
   credits_required: number;
-  max_students?: number;
   first_name: string;
   last_name: string;
   instructor_rating: number;

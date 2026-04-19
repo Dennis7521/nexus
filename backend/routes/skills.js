@@ -44,11 +44,8 @@ router.get('/', async (req, res) => {
       difficulty_level: skill.difficulty_level || 'intermediate',
       time_commitment_hours: skill.time_commitment_hours || parseInt(skill.duration_per_week) || 2,
       time_commitment_period: skill.time_commitment_period || 'week',
-      location_type: skill.location_type || 'online',
-      specific_location: skill.specific_location || skill.location || null,
       prerequisites: skill.prerequisites || null,
-      tags: skill.tags || [],
-      max_students: skill.max_students || 1
+      tags: skill.tags || []
     }));
     
     res.json(skills);
@@ -314,7 +311,7 @@ router.post('/:id/view', authenticateToken, async (req, res) => {
 router.get('/categories', async (req, res) => {
   try {
     const result = await query(
-      'SELECT id, name, description, icon, color FROM skill_categories ORDER BY name'
+      'SELECT id, name FROM skill_categories ORDER BY name'
     );
     res.json(result.rows);
   } catch (error) {

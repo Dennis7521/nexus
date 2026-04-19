@@ -86,13 +86,14 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 // Configure axios defaults
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
 axios.defaults.baseURL = API_BASE_URL;
+axios.defaults.withCredentials = true; // Send httpOnly cookies on every request
 
 export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
-  const [token, setToken] = useState<string | null>(localStorage.getItem('token'));
+  const [token, setToken] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
 
-  // Set up axios interceptor for authentication
+  // Keep Authorization header in sync with token state (belt-and-suspenders alongside cookie)
   useEffect(() => {
     if (token) {
       axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
@@ -101,15 +102,10 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     }
   }, [token]);
 
-  // Check if user is authenticated on app load
+  // Check if user is authenticated on app load via httpOnly cookie (no localStorage)
   useEffect(() => {
     const checkAuth = async () => {
-      const storedToken = localStorage.getItem('token');
-      if (storedToken) {
-        try {
-          setToken(storedToken);
-          axios.defaults.headers.common['Authorization'] = `Bearer ${storedToken}`;
-          
+      try {
           const response = await axios.get('/auth/me');
           const userData = response.data.user;
           
@@ -139,8 +135,8 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
           
           // Load exchange requests from database after setting user
           try {
-            const response = await axios.get(`/exchanges/requests?userId=${userData.id}`);
-            const { incoming, outgoing } = response.data;
+            const exchangeRes = await axios.get(`/exchanges/requests`);
+            const { incoming, outgoing } = exchangeRes.data;
               
               // Convert database format to frontend format
               const incomingRequests = incoming.map((req: any) => ({
@@ -180,12 +176,10 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
             console.error('Error loading exchange requests:', error);
           }
         } catch (error) {
-          console.error('Auth check failed:', error);
-          localStorage.removeItem('token');
+          // No valid cookie — user is not authenticated
           setToken(null);
           delete axios.defaults.headers.common['Authorization'];
         }
-      }
       setLoading(false);
     };
 
@@ -195,21 +189,16 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   const login = async (email: string, password: string) => {
     try {
       const response = await axios.post('/auth/login', { email, password });
-      console.log('📥 Login response data:', response.data);
+      console.log('Login response data:', response.data);
       const { user: userData, token: userToken, mustChangePassword } = response.data;
       
       // If must change password, return early with flag
       if (mustChangePassword) {
-        console.log('🔑 mustChangePassword flag detected:', mustChangePassword);
         setToken(userToken);
-        // Don't set user yet - only set token so ProtectedRoute allows access
         localStorage.setItem('token', userToken);
         axios.defaults.headers.common['Authorization'] = `Bearer ${userToken}`;
-        console.log('✅ Returning mustChangePassword result');
         return { mustChangePassword: true, user: userData };
       }
-      
-      console.log('✅ Normal login flow - no password change required');
       
       // Convert full URL to relative path for profile picture
       if (userData.profilePictureUrl && userData.profilePictureUrl.startsWith('http')) {
@@ -240,7 +229,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       
       // Load exchange requests after login
       try {
-        const exchangeResponse = await axios.get(`/exchanges/requests?userId=${userData.id}`);
+        const exchangeResponse = await axios.get(`/exchanges/requests`);
         const { incoming, outgoing } = exchangeResponse.data;
         
         // Convert database format to frontend format
@@ -333,6 +322,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   };
 
   const logout = () => {
+    axios.post('/auth/logout').catch(() => {}); // Clear httpOnly cookie server-side
     setUser(null);
     setToken(null);
     localStorage.removeItem('token');
@@ -347,13 +337,13 @@ setUser(updatedUser);
   };
 
   const updateProfilePicture = async (imageUrl: string | null) => {
-    console.log('📸 AuthContext: updateProfilePicture called with:', imageUrl);
+    console.log('AuthContext: updateProfilePicture called with:', imageUrl);
     if (user) {
-      console.log('📸 AuthContext: Current user profilePictureUrl:', user.profilePictureUrl);
+      console.log('AuthContext: Current user profilePictureUrl:', user.profilePictureUrl);
       
       // Update local state immediately for instant feedback
       const updatedUser = { ...user, profilePictureUrl: imageUrl || undefined };
-      console.log('📸 AuthContext: Setting new user with profilePictureUrl:', updatedUser.profilePictureUrl);
+      console.log('AuthContext: Setting new user with profilePictureUrl:', updatedUser.profilePictureUrl);
       setUser(updatedUser);
       
       // Refetch user data from backend to ensure sync
@@ -371,16 +361,16 @@ setUser(updatedUser);
           ...prevUser!,
           ...userData
         }));
-        console.log('📸 AuthContext: User data refreshed from backend');
+        console.log('AuthContext: User data refreshed from backend');
       } catch (error) {
-        console.error('📸 AuthContext: Failed to refresh user data:', error);
+        console.error('AuthContext: Failed to refresh user data:', error);
       }
     } else {
-      console.log('📸 AuthContext: No user logged in');
+      console.log('AuthContext: No user logged in');
     }
   };
 
-  const requestExchange = async (skillTitle: string, partnerName: string, partnerId: string, creditsRequired: number): Promise<boolean> => {
+  const requestExchange = async (skillTitle: string, partnerName: string, _partnerId: string, creditsRequired: number): Promise<boolean> => {
     if (!user) return false;
     
     // Check if user has enough available credits (excluding reserved/pending credits)
@@ -440,7 +430,7 @@ setUser(updatedUser);
   const confirmExchange = (transactionId: string) => {
     if (!user) return;
 
-    const updatedTransactions = user.transactions?.map(tx => {
+    user.transactions?.forEach(tx => {
       if (tx.id === transactionId && tx.status === 'pending') {
         // Deduct credits when exchange is confirmed
         const updatedUser = {
@@ -451,10 +441,8 @@ setUser(updatedUser);
           ) || []
         };
         setUser(updatedUser);
-        return { ...tx, status: 'completed' as const };
       }
-      return tx;
-    }) || [];
+    });
   };
 
   const cancelExchange = (transactionId: string) => {
@@ -490,7 +478,7 @@ setUser(updatedUser);
     if (!user) return;
     
     try {
-      const response = await axios.get(`/exchanges/requests?userId=${user.id}`);
+      const response = await axios.get(`/exchanges/requests`);
       const { incoming, outgoing } = response.data;
       
       // Convert database format to frontend format
@@ -592,18 +580,13 @@ setUser(updatedUser);
     if (!user) return false;
 
     try {
-      const token = localStorage.getItem('token');
       const requestData = {
         skillId,
         sessionCount,
         message: message || ''
       };
 
-      const response = await axios.post('/exchanges/request', requestData, {
-        headers: {
-          'Authorization': `Bearer ${token}`
-        }
-      });
+      const response = await axios.post('/exchanges/request', requestData);
       
       if (response.status === 201) {
         // Reload exchange requests to get updated data

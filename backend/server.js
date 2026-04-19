@@ -3,6 +3,7 @@ const cors = require('cors');
 const helmet = require('helmet');
 const morgan = require('morgan');
 const rateLimit = require('express-rate-limit');
+const cookieParser = require('cookie-parser');
 const path = require('path');
 const fs = require('fs');
 const { pool, query } = require('./config/database');
@@ -12,10 +13,6 @@ require('dotenv').config();
 
 const app = express();
 const PORT = process.env.PORT || 5000;
-
-// TEST: Absolute simplest route - register FIRST
-app.get('/test', (req, res) => res.json({ test: 'OK' }));
-app.get('/api/test', (req, res) => res.json({ apiTest: 'OK' }));
 
 // Security middleware
 app.use(helmet());
@@ -57,6 +54,9 @@ app.use('/api/payments/webhook', express.raw({ type: 'application/json' }));
 // Body parsing middleware - 1MB limit for JSON (file uploads use multipart)
 app.use(express.json({ limit: '1mb' }));
 app.use(express.urlencoded({ extended: true, limit: '1mb' }));
+
+// Cookie parser — required for httpOnly JWT cookie support
+app.use(cookieParser());
 
 // Public profile pictures (low sensitivity) - no auth required
 app.use('/uploads/profile-pictures', express.static('uploads/profile-pictures'));
@@ -130,30 +130,7 @@ app.get('/api/health', (req, res) => {
 // Logging middleware
 app.use(morgan('combined'));
 
-// Database connection test endpoint
-app.get('/api/db-test', async (req, res) => {
-  try {
-    const result = await query('SELECT NOW() as current_time, version() as postgres_version');
-    res.json({
-      status: 'Connected',
-      message: 'PostgreSQL connection successful',
-      data: {
-        current_time: result.rows[0].current_time,
-        postgres_version: result.rows[0].postgres_version
-      }
-    });
-  } catch (error) {
-    console.error('Database connection test failed:', error);
-    res.status(500).json({
-      status: 'Error',
-      message: 'PostgreSQL connection failed',
-      error: error.message
-    });
-  }
-});
-
-// API Routes - Real authentication enabled
-// Debug: Log route loading
+// API Routes
 console.log('Loading routes...');
 
 const routes = [
@@ -199,8 +176,8 @@ app.use((req, res) => {
 });
 
 app.listen(PORT, () => {
-  console.log(`🚀 NEXUS API server running on port ${PORT}`);
-  console.log(`📊 Health check: http://localhost:${PORT}/api/health`);
+  console.log(`NEXUS API server running on port ${PORT}`);
+  console.log(`Health check: http://localhost:${PORT}/api/health`);
 
   // Start background matching cron jobs
   startScheduledJobs();

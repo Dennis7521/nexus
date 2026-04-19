@@ -4,8 +4,11 @@ const { query } = require('../config/database');
 // Middleware to verify JWT token
 const authenticateToken = async (req, res, next) => {
   try {
+    // Accept token from httpOnly cookie (preferred) or Authorization header (fallback)
+    const cookieToken = req.cookies?.auth_token;
     const authHeader = req.headers['authorization'];
-    const token = authHeader && authHeader.split(' ')[1]; // Bearer TOKEN
+    const headerToken = authHeader && authHeader.split(' ')[1];
+    const token = cookieToken || headerToken;
 
     if (!token) {
       return res.status(401).json({ message: 'Access token required' });
@@ -14,9 +17,11 @@ const authenticateToken = async (req, res, next) => {
     // Verify token
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
     
-    // Get user from database
+    // Get user from database (include password_changed_at for session invalidation)
     const result = await query(
-      'SELECT id, student_id, email, first_name, last_name, time_credits, is_active, COALESCE(is_suspended, false) as is_suspended FROM users WHERE id = $1',
+      `SELECT id, student_id, email, first_name, last_name, time_credits, is_active,
+              COALESCE(is_suspended, false) as is_suspended, password_changed_at
+       FROM users WHERE id = $1`,
       [decoded.userId]
     );
 
@@ -32,6 +37,14 @@ const authenticateToken = async (req, res, next) => {
 
     if (user.is_suspended) {
       return res.status(403).json({ message: 'Your account has been suspended. Please contact support for assistance.' });
+    }
+
+    // Reject tokens that were issued before the last password change
+    if (user.password_changed_at) {
+      const tokenIssuedAt = decoded.iat * 1000; // JWT iat is in seconds
+      if (new Date(user.password_changed_at).getTime() > tokenIssuedAt) {
+        return res.status(401).json({ message: 'Session expired due to password change. Please log in again.' });
+      }
     }
 
     // Add user to request object

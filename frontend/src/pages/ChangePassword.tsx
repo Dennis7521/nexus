@@ -83,7 +83,10 @@ export const ChangePassword: React.FC = () => {
       const data = await response.json();
 
       if (response.ok) {
-        // Set user in context now that password is changed
+        // Update stored token with the fresh one issued after password change
+        if (data.token) {
+          localStorage.setItem('token', data.token);
+        }
         if (data.user) {
           updateUser(data.user);
         }

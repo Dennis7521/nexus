@@ -7,6 +7,10 @@ const GraphService = require('../services/GraphService');
 let asyncMatchJobRunning = false;
 let cycleJobRunning = false;
 
+// Cooldown for login-triggered jobs — prevents running on every concurrent login
+let lastLoginTriggerAt = 0;
+const LOGIN_TRIGGER_COOLDOWN_MS = 5 * 60 * 1000; // 5 minutes
+
 // ─── Job Logger ───────────────────────────────────────────────────────────────
 
 function log(jobName, level, message) {
@@ -159,6 +163,12 @@ async function runAllMatchingJobs() {
 // ─── Login Trigger (fire-and-forget) ─────────────────────────────────────────
 
 function triggerMatchingJobsOnLogin() {
+  const now = Date.now();
+  if (now - lastLoginTriggerAt < LOGIN_TRIGGER_COOLDOWN_MS) {
+    log('LOGIN_TRIGGER', 'info', 'Cooldown active — skipping login-triggered matching jobs');
+    return;
+  }
+  lastLoginTriggerAt = now;
   setImmediate(async () => {
     log('LOGIN_TRIGGER', 'info', 'Login detected — triggering background matching jobs');
     await runAllMatchingJobs();
@@ -166,6 +176,28 @@ function triggerMatchingJobsOnLogin() {
 }
 
 // ─── Cron Scheduler ──────────────────────────────────────────────────────────
+
+// ─── Cleanup Expired Data ─────────────────────────────────────────────────────
+
+async function cleanupExpiredData() {
+  try {
+    // Delete expired OTP codes
+    const otpResult = await query(`DELETE FROM otps WHERE expires_at < NOW()`);
+
+    // Delete unverified accounts older than 24 hours (abandoned registrations)
+    const userResult = await query(
+      `DELETE FROM users
+       WHERE email_verified = false
+         AND is_active = true
+         AND created_at < NOW() - INTERVAL '24 hours'`
+    );
+
+    log('CLEANUP', 'success',
+      `Deleted ${otpResult.rowCount} expired OTPs and ${userResult.rowCount} stale unverified accounts`);
+  } catch (err) {
+    log('CLEANUP', 'error', `Cleanup error: ${err.message}`);
+  }
+}
 
 function startScheduledJobs() {
   const jobEnabled = process.env.JOB_ENABLED !== 'false';
@@ -176,6 +208,7 @@ function startScheduledJobs() {
 
   const matchesSchedule = process.env.JOB_SCHEDULE_MATCHES || '0 */6 * * *'; // every 6 hours
   const cyclesSchedule = process.env.JOB_SCHEDULE_CYCLES || '0 */6 * * *';   // every 6 hours
+  const cleanupSchedule = '0 2 * * *'; // daily at 2 AM
 
   // Schedule async match generation
   cron.schedule(matchesSchedule, () => {
@@ -193,9 +226,18 @@ function startScheduledJobs() {
     );
   }, { timezone: 'Africa/Gaborone' });
 
+  // Schedule nightly cleanup
+  cron.schedule(cleanupSchedule, () => {
+    log('SCHEDULER', 'info', 'Nightly cleanup triggered');
+    cleanupExpiredData().catch(err =>
+      log('SCHEDULER', 'error', `Cleanup cron error: ${err.message}`)
+    );
+  }, { timezone: 'Africa/Gaborone' });
+
   log('SCHEDULER', 'success', `Scheduled jobs started:`);
   log('SCHEDULER', 'info', `  Async matches: ${matchesSchedule}`);
   log('SCHEDULER', 'info', `  Cycle detection: ${cyclesSchedule}`);
+  log('SCHEDULER', 'info', `  Cleanup: ${cleanupSchedule}`);
 }
 
 module.exports = {

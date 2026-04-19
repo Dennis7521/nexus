@@ -122,7 +122,7 @@ router.post('/webhook', express.raw({ type: 'application/json' }), async (req, r
   const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET;
 
   if (!webhookSecret) {
-    console.error('⚠️  STRIPE_WEBHOOK_SECRET not configured');
+    console.error('WARNING: STRIPE_WEBHOOK_SECRET not configured');
     return res.status(400).send('Webhook secret not configured');
   }
 
@@ -130,7 +130,7 @@ router.post('/webhook', express.raw({ type: 'application/json' }), async (req, r
   try {
     event = stripe.webhooks.constructEvent(req.body, sig, webhookSecret);
   } catch (err) {
-    console.error('❌ Webhook signature verification failed:', err.message);
+    console.error('ERROR: Webhook signature verification failed:', err.message);
     return res.status(400).send(`Webhook Error: ${err.message}`);
   }
 
@@ -142,7 +142,7 @@ router.post('/webhook', express.raw({ type: 'application/json' }), async (req, r
         await processPurchase(purchase, session.payment_intent);
       }
     } catch (err) {
-      console.error('❌ Error processing webhook payment:', err);
+      console.error('ERROR: Error processing webhook payment:', err);
       return res.status(500).send('Processing error');
     }
   }
@@ -172,6 +172,17 @@ async function processPurchase(purchase, paymentIntentId) {
   try {
     await client.query('BEGIN');
 
+    // Lock the purchase row — prevents double-crediting if webhook and session
+    // verify fire concurrently for the same payment
+    const lockResult = await client.query(
+      `SELECT status FROM credit_purchases WHERE id = $1 FOR UPDATE`,
+      [purchase.id]
+    );
+    if (lockResult.rows[0]?.status === 'completed') {
+      await client.query('ROLLBACK');
+      return;
+    }
+
     await client.query(
       `UPDATE credit_purchases
        SET status = 'completed',
@@ -197,7 +208,7 @@ async function processPurchase(purchase, paymentIntentId) {
     );
 
     await client.query('COMMIT');
-    console.log(`✅ Credited ${purchase.credits_purchased} credits to user ${purchase.user_id}`);
+    console.log(`SUCCESS: Credited ${purchase.credits_purchased} credits to user ${purchase.user_id}`);
 
     const userResult = await client.query(
       'SELECT email, first_name, last_name FROM users WHERE id = $1',
@@ -212,11 +223,11 @@ async function processPurchase(purchase, paymentIntentId) {
         purchase.credits_purchased,
         Number(purchase.amount_paid),
         paymentIntentId || purchase.stripe_session_id
-      ).catch(err => console.error('❌ Failed to send receipt email:', err));
+      ).catch(err => console.error('ERROR: Failed to send receipt email:', err));
     }
   } catch (error) {
     await client.query('ROLLBACK');
-    console.error('❌ processPurchase error:', error);
+    console.error('ERROR: processPurchase error:', error);
     throw error;
   } finally {
     client.release();

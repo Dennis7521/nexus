@@ -16,17 +16,17 @@ const router = express.Router();
 
 // Helper function to convert relative profile picture path to full URL
 const getProfilePictureUrl = (relativePath, req) => {
-  if (!relativePath) {
-    console.log('📸 getProfilePictureUrl: No path provided');
-    return null;
-  }
-  if (relativePath.startsWith('http')) {
-    console.log('📸 getProfilePictureUrl: Already full URL:', relativePath);
-    return relativePath;
-  }
-  const fullUrl = `${req.protocol}://${req.get('host')}${relativePath}`;
-  console.log('📸 getProfilePictureUrl: Converting', relativePath, '→', fullUrl);
-  return fullUrl;
+  if (!relativePath) return null;
+  if (relativePath.startsWith('http')) return relativePath;
+  return `${req.protocol}://${req.get('host')}${relativePath}`;
+};
+
+// Cookie options for JWT — httpOnly prevents JS access (XSS mitigation)
+const cookieOptions = {
+  httpOnly: true,
+  secure: process.env.NODE_ENV === 'production',
+  sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
+  maxAge: 7 * 24 * 60 * 60 * 1000 // 7 days
 };
 
 // Rate limiting for auth routes - production ready
@@ -253,25 +253,35 @@ router.post('/verify-email', authLimiter, [
     // Create welcome deposit transaction and update user credits
     const WELCOME_CREDITS = 10;
     try {
-      const { query } = require('../config/database');
-      
-      // Create welcome deposit transaction record
-      await query(
-        `INSERT INTO transactions 
-          (from_user_id, to_user_id, credits, transaction_type, description, exchange_request_id)
-         VALUES (NULL, $1, $2, $3, $4, NULL)`,
-        [verifiedUser.id, WELCOME_CREDITS, 'welcome_bonus', 'Welcome deposit — Initial 10 credits']
-      );
-      
-      // Update user's time_credits
-      await query(
-        'UPDATE users SET time_credits = time_credits + $1 WHERE id = $2',
-        [WELCOME_CREDITS, verifiedUser.id]
-      );
-      
-      console.log(`✅ Welcome deposit of ${WELCOME_CREDITS} credits created for user ${verifiedUser.id}`);
-      
-      // Send welcome deposit email
+      const { getClient } = require('../config/database');
+      const welcomeClient = await getClient();
+      try {
+        await welcomeClient.query('BEGIN');
+
+        // Create welcome deposit transaction record
+        await welcomeClient.query(
+          `INSERT INTO transactions 
+            (from_user_id, to_user_id, credits, transaction_type, description, exchange_request_id)
+           VALUES (NULL, $1, $2, $3, $4, NULL)`,
+          [verifiedUser.id, WELCOME_CREDITS, 'welcome_bonus', 'Welcome deposit — Initial 10 credits']
+        );
+
+        // Update user's time_credits (atomic with the transaction record above)
+        await welcomeClient.query(
+          'UPDATE users SET time_credits = time_credits + $1 WHERE id = $2',
+          [WELCOME_CREDITS, verifiedUser.id]
+        );
+
+        await welcomeClient.query('COMMIT');
+        console.log(`SUCCESS: Welcome deposit of ${WELCOME_CREDITS} credits created for user ${verifiedUser.id}`);
+      } catch (txErr) {
+        await welcomeClient.query('ROLLBACK');
+        throw txErr;
+      } finally {
+        welcomeClient.release();
+      }
+
+      // Send welcome deposit email (outside transaction — non-critical)
       await emailService.sendWelcomeDepositEmail(
         verifiedUser.email,
         verifiedUser.first_name,
@@ -282,9 +292,14 @@ router.post('/verify-email', authLimiter, [
       // Don't fail the registration if deposit/email fails
     }
 
+    // Re-fetch user to get the accurate credit balance after the welcome deposit
+    const freshUser = await User.findById(verifiedUser.id);
+    const creditBalance = freshUser ? Number(freshUser.time_credits) : (Number(verifiedUser.time_credits) || 0) + WELCOME_CREDITS;
+
     // Generate JWT token
     const token = generateToken(verifiedUser.id);
 
+    res.cookie('auth_token', token, cookieOptions);
     res.json({
       message: 'Email verified successfully. Registration complete!',
       user: {
@@ -296,7 +311,7 @@ router.post('/verify-email', authLimiter, [
         bio: verifiedUser.bio,
         degreeProgram: verifiedUser.degree_program,
         yearOfStudy: verifiedUser.year_of_study,
-        timeCredits: (verifiedUser.time_credits || 0) + WELCOME_CREDITS,
+        timeCredits: creditBalance,
         emailVerified: verifiedUser.email_verified,
         skillsPossessing: verifiedUser.skills_possessing || [],
         skillsInterestedIn: verifiedUser.skills_interested_in || [],
@@ -447,6 +462,7 @@ router.post('/login', authLimiter, loginValidation, async (req, res) => {
     if (mustChangePassword) {
       // Generate token but indicate password change required
       const token = generateToken(user.id);
+      res.cookie('auth_token', token, cookieOptions);
       return res.json({
         message: 'Password change required',
         mustChangePassword: true,
@@ -466,7 +482,8 @@ router.post('/login', authLimiter, loginValidation, async (req, res) => {
     // Get user skills
     const userSkills = await User.getUserSkills(user.id);
 
-    // Return user data (without password) and token
+    // Return user data (without password) and token; also set httpOnly cookie
+    res.cookie('auth_token', token, cookieOptions);
     res.json({
       message: 'Login successful',
       user: {
@@ -542,7 +559,11 @@ router.get('/me', authenticateToken, async (req, res) => {
 
 // Logout endpoint
 router.post('/logout', authenticateToken, (req, res) => {
-  // In a more sophisticated implementation, you might want to blacklist the token
+  res.clearCookie('auth_token', {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === 'production',
+    sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax'
+  });
   res.json({
     message: 'Logout successful'
   });
@@ -583,7 +604,6 @@ router.put('/profile', authenticateToken, [
     .isInt({ min: 1, max: 6 })
     .withMessage('Year of study must be between 1 and 6'),
 ], async (req, res) => {
-  console.log('🚨 PROFILE ENDPOINT HIT!');
   try {
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
@@ -595,11 +615,6 @@ router.put('/profile', authenticateToken, [
 
     const userId = req.user.id;
     const { firstName, lastName, bio, degreeProgram, yearOfStudy, skills, skillsPossessing, skillsInterestedIn } = req.body;
-    
-    console.log('🔥 PROFILE UPDATE DEBUG - Request body:', JSON.stringify(req.body, null, 2));
-    console.log('🔥 SKILLS DEBUG - Skills value:', skills);
-    console.log('🔥 SKILLS DEBUG - Type:', typeof skills);
-    console.log('🔥 SKILLS DEBUG - IsArray:', Array.isArray(skills));
 
     // Update user profile
     const updatedUser = await User.updateProfile(userId, {
@@ -621,9 +636,7 @@ router.put('/profile', authenticateToken, [
     // Update user skills if provided
     let updatedSkills = [];
     if (skills && Array.isArray(skills)) {
-      console.log('Updating skills for user:', userId, 'with skills:', skills);
       updatedSkills = await User.updateUserSkills(userId, skills);
-      console.log('Skills update result:', updatedSkills);
     } else {
       // Get existing skills if none provided
       updatedSkills = await User.getUserSkills(userId);
@@ -656,7 +669,7 @@ router.put('/profile', authenticateToken, [
     console.error('Profile update error:', error);
     res.status(500).json({
       message: 'Failed to update profile',
-      error: error.message
+      error: process.env.NODE_ENV === 'development' ? error.message : 'Internal server error'
     });
   }
 });
@@ -740,46 +753,33 @@ router.get('/reviews', authenticateToken, async (req, res) => {
 // Upload profile picture
 router.post('/upload-profile-picture', authenticateToken, uploadProfilePicture.single('profilePicture'), async (req, res) => {
   try {
-    console.log('📸 === UPLOAD PROFILE PICTURE START ===');
-    
     if (!req.file) {
-      console.log('📸 ERROR: No file uploaded');
       return res.status(400).json({ message: 'No file uploaded' });
     }
 
     const userId = req.user.id;
     const relativePath = `/uploads/profile-pictures/${req.file.filename}`;
     const profilePictureUrl = `${req.protocol}://${req.get('host')}${relativePath}`;
-    
-    console.log('📸 User ID:', userId);
-    console.log('📸 File uploaded:', req.file.filename);
-    console.log('📸 Relative path (stored in DB):', relativePath);
-    console.log('📸 Full URL (returned to frontend):', profilePictureUrl);
 
     // Get user's old profile picture
     const user = await User.findById(userId);
     const oldPicture = user?.profile_picture_url;
-    console.log('📸 Old picture:', oldPicture || '(none)');
 
     // Update user's profile picture in database (store relative path)
     await User.updateProfilePicture(userId, relativePath);
-    console.log('📸 Database updated with relative path');
 
     // Delete old profile picture if it exists
     if (oldPicture) {
       const oldPicturePath = path.join(__dirname, '..', oldPicture);
       if (fs.existsSync(oldPicturePath)) {
         fs.unlinkSync(oldPicturePath);
-        console.log('📸 Old picture deleted:', oldPicturePath);
       }
     }
 
-    console.log('📸 Sending response with profilePictureUrl:', profilePictureUrl);
     res.json({
       message: 'Profile picture uploaded successfully',
       profilePictureUrl
     });
-    console.log('📸 === UPLOAD COMPLETE ===');
   } catch (error) {
     console.error('Upload profile picture error:', error);
     
@@ -793,7 +793,7 @@ router.post('/upload-profile-picture', authenticateToken, uploadProfilePicture.s
     
     res.status(500).json({
       message: 'Failed to upload profile picture',
-      error: error.message
+      error: process.env.NODE_ENV === 'development' ? error.message : 'Internal server error'
     });
   }
 });
@@ -1018,9 +1018,14 @@ router.post('/change-password', authenticateToken, [
     // Get updated user data to return
     const updatedUser = await User.findById(userId);
 
+    // Issue a fresh token so password_changed_at doesn't invalidate this session
+    const newToken = generateToken(userId);
+    res.cookie('auth_token', newToken, cookieOptions);
+
     res.json({
       message: 'Password changed successfully',
-      user: updatedUser
+      user: updatedUser,
+      token: newToken
     });
 
   } catch (error) {
@@ -1035,46 +1040,33 @@ router.post('/change-password', authenticateToken, [
 // Upload transcript
 router.post('/upload-transcript', authenticateToken, uploadTranscript.single('transcript'), async (req, res) => {
   try {
-    console.log('📄 === UPLOAD TRANSCRIPT START ===');
-    
     if (!req.file) {
-      console.log('📄 ERROR: No file uploaded');
       return res.status(400).json({ message: 'No file uploaded' });
     }
 
     const userId = req.user.id;
     const relativePath = `/uploads/transcripts/${req.file.filename}`;
     const transcriptUrl = `${req.protocol}://${req.get('host')}${relativePath}`;
-    
-    console.log('📄 User ID:', userId);
-    console.log('📄 File uploaded:', req.file.filename);
-    console.log('📄 Relative path (stored in DB):', relativePath);
-    console.log('📄 Full URL (returned to frontend):', transcriptUrl);
 
     // Get user's old transcript
     const user = await User.findById(userId);
     const oldTranscript = user?.transcript_url;
-    console.log('📄 Old transcript:', oldTranscript || '(none)');
 
     // Update user's transcript in database (store relative path)
     await User.updateTranscript(userId, relativePath);
-    console.log('📄 Database updated with relative path');
 
     // Delete old transcript if it exists
     if (oldTranscript) {
       const oldTranscriptPath = path.join(__dirname, '..', oldTranscript);
       if (fs.existsSync(oldTranscriptPath)) {
         fs.unlinkSync(oldTranscriptPath);
-        console.log('📄 Old transcript deleted:', oldTranscriptPath);
       }
     }
 
-    console.log('📄 Sending response with transcriptUrl:', transcriptUrl);
     res.json({
       message: 'Transcript uploaded successfully',
       transcriptUrl
     });
-    console.log('📄 === UPLOAD COMPLETE ===');
   } catch (error) {
     console.error('Upload transcript error:', error);
     
@@ -1088,7 +1080,7 @@ router.post('/upload-transcript', authenticateToken, uploadTranscript.single('tr
     
     res.status(500).json({
       message: 'Failed to upload transcript',
-      error: error.message
+      error: process.env.NODE_ENV === 'development' ? error.message : 'Internal server error'
     });
   }
 });
@@ -1118,7 +1110,7 @@ router.delete('/delete-transcript', authenticateToken, async (req, res) => {
     console.error('Delete transcript error:', error);
     res.status(500).json({
       message: 'Failed to delete transcript',
-      error: error.message
+      error: process.env.NODE_ENV === 'development' ? error.message : 'Internal server error'
     });
   }
 });
@@ -1138,19 +1130,17 @@ router.delete('/delete-profile-picture', authenticateToken, async (req, res) => 
     // Delete file from filesystem
     if (fs.existsSync(picturePath)) {
       fs.unlinkSync(picturePath);
-      console.log('📸 Profile picture deleted from filesystem:', picturePath);
     }
 
     // Remove from database
     await User.updateProfilePicture(userId, null);
-    console.log('📸 Profile picture removed from database');
 
     res.json({ message: 'Profile picture deleted successfully' });
   } catch (error) {
     console.error('Delete profile picture error:', error);
     res.status(500).json({
       message: 'Failed to delete profile picture',
-      error: error.message
+      error: process.env.NODE_ENV === 'development' ? error.message : 'Internal server error'
     });
   }
 });

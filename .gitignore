@@ -40,6 +40,9 @@ lerna-debug.log*
 # OS files
 Thumbs.db
 
+# Documentation (excluded from public repo)
+docs/
+
 # Database files
 *.sqlite
 *.sqlite3

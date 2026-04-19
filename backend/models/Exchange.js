@@ -9,9 +9,9 @@ class Exchange {
     try {
       await client.query('BEGIN');
       
-      // Check user has enough credits
+      // Check user has enough credits (FOR UPDATE serialises concurrent requests from the same user)
       const userResult = await client.query(
-        'SELECT time_credits FROM users WHERE id = $1',
+        'SELECT time_credits FROM users WHERE id = $1 FOR UPDATE',
         [requesterId]
       );
       
@@ -59,10 +59,11 @@ class Exchange {
     try {
       await client.query('BEGIN');
       
-      // Get exchange details
+      // Get exchange details (FOR UPDATE prevents double-acceptance of the same request)
       const exchangeResult = await client.query(
         `SELECT * FROM exchange_requests 
-         WHERE id = $1 AND instructor_id = $2 AND status = 'pending'`,
+         WHERE id = $1 AND instructor_id = $2 AND status = 'pending'
+         FOR UPDATE`,
         [exchangeId, instructorId]
       );
       
@@ -72,9 +73,9 @@ class Exchange {
       
       const exchange = exchangeResult.rows[0];
       
-      // Check if learner still has enough credits
+      // Check if learner still has enough credits (FOR UPDATE prevents concurrent deductions)
       const userResult = await client.query(
-        'SELECT time_credits FROM users WHERE id = $1',
+        'SELECT time_credits FROM users WHERE id = $1 FOR UPDATE',
         [exchange.requester_id]
       );
       

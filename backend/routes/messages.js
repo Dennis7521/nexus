@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const { query } = require('../config/database');
+const { query, getClient } = require('../config/database');
 const { authenticateToken } = require('../middleware/auth');
 
 
@@ -60,10 +60,10 @@ router.get('/direct/:partnerId', authenticateToken, async (req, res) => {
 });
 
 // Get messages for an exchange request
-router.get('/exchange/:exchangeId', async (req, res) => {
+router.get('/exchange/:exchangeId', authenticateToken, async (req, res) => {
   try {
     const { exchangeId } = req.params;
-    const { userId } = req.query;
+    const userId = req.user.id;
     
     // Verify user is part of this exchange
     const exchangeResult = await query(
@@ -149,9 +149,9 @@ router.post('/send', authenticateToken, async (req, res) => {
 });
 
 // Get user's conversations
-router.get('/conversations/:userId', async (req, res) => {
+router.get('/conversations/:userId', authenticateToken, async (req, res) => {
   try {
-    const { userId } = req.params;
+    const userId = req.user.id;
     
     // Get conversations from exchange requests
     const result = await query(
@@ -351,39 +351,63 @@ router.delete('/direct/:partnerId', authenticateToken, async (req, res) => {
 
 // Delete entire conversation - NEW ENDPOINT
 router.delete('/conversation/:exchangeId', authenticateToken, async (req, res) => {
+  const client = await getClient();
   try {
     const { exchangeId } = req.params;
     const userId = req.user.id;
 
-    // Verify user is part of this exchange
-    const exchangeResult = await query(
-      'SELECT * FROM exchange_requests WHERE id = $1 AND (requester_id = $2 OR instructor_id = $2)',
+    await client.query('BEGIN');
+
+    // Verify user is part of this exchange and lock the row
+    const exchangeResult = await client.query(
+      'SELECT * FROM exchange_requests WHERE id = $1 AND (requester_id = $2 OR instructor_id = $2) FOR UPDATE',
       [exchangeId, userId]
     );
 
     if (exchangeResult.rows.length === 0) {
+      await client.query('ROLLBACK');
       return res.status(403).json({ message: 'Access denied to this conversation' });
     }
 
+    const exchange = exchangeResult.rows[0];
+
+    // Refund any credits sitting in escrow before cancelling
+    if (exchange.escrow_credits > 0) {
+      await client.query(
+        'UPDATE users SET time_credits = time_credits + $1 WHERE id = $2',
+        [exchange.escrow_credits, exchange.requester_id]
+      );
+      await client.query(
+        `INSERT INTO transactions (exchange_request_id, from_user_id, to_user_id, credits, transaction_type, description)
+         VALUES ($1, NULL, $2, $3, 'refund', 'Escrow refund — conversation cancelled by user')`,
+        [exchangeId, exchange.requester_id, exchange.escrow_credits]
+      );
+    }
+
     // Delete all messages for this exchange
-    const deleteResult = await query(
+    const deleteResult = await client.query(
       'DELETE FROM messages WHERE exchange_request_id = $1',
       [exchangeId]
     );
 
-    // Mark the exchange as cancelled
-    await query(
-      'UPDATE exchange_requests SET status = $1, updated_at = NOW() WHERE id = $2',
+    // Cancel the exchange and zero out escrow
+    await client.query(
+      'UPDATE exchange_requests SET status = $1, escrow_credits = 0, updated_at = NOW() WHERE id = $2',
       ['cancelled', exchangeId]
     );
+
+    await client.query('COMMIT');
 
     res.json({
       message: 'Conversation deleted successfully',
       deletedMessages: deleteResult.rowCount
     });
   } catch (error) {
+    await client.query('ROLLBACK');
     console.error('Error deleting conversation:', error);
     res.status(500).json({ message: 'Failed to delete conversation' });
+  } finally {
+    client.release();
   }
 });
 
