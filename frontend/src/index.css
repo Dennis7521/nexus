@@ -211,3 +211,58 @@
     transition: border-color 0.15s ease, box-shadow 0.15s ease;
   }
 }
+
+/* ===== Mobile-only safety net (desktop untouched) ===== */
+@media (max-width: 768px) {
+  /* Prevent horizontal scroll from oversized elements */
+  html, body {
+    overflow-x: hidden;
+    max-width: 100vw;
+  }
+
+  /* Force common containers to fit viewport */
+  .container, main, section {
+    max-width: 100% !important;
+    padding-left: 16px !important;
+    padding-right: 16px !important;
+  }
+
+  /* Tables — make them horizontally scrollable instead of breaking layout */
+  table {
+    display: block;
+    overflow-x: auto;
+    white-space: nowrap;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  /* Cards & modals shouldn't overflow */
+  .card, .modal, [class*="modal"] {
+    max-width: 100% !important;
+    width: 100% !important;
+  }
+
+  /* Shrink oversized headings that break layout */
+  h1 { font-size: 1.75rem !important; line-height: 1.2 !important; }
+  h2 { font-size: 1.375rem !important; line-height: 1.25 !important; }
+  h3 { font-size: 1.125rem !important; }
+
+  /* Buttons: tappable touch targets */
+  .btn, button {
+    min-height: 44px;
+  }
+
+  /* Inputs: prevent iOS auto-zoom on focus (needs >=16px) */
+  input, select, textarea {
+    font-size: 16px !important;
+  }
+
+  /* Images & media never overflow */
+  img, video, iframe {
+    max-width: 100% !important;
+    height: auto;
+  }
+
+  /* Utility classes for optional manual tweaks */
+  .stack-mobile { flex-direction: column !important; }
+  .desktop-only { display: none !important; }
+}
