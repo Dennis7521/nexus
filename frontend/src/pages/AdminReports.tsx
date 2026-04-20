@@ -101,12 +101,13 @@ export const AdminReports: React.FC = () => {
 
   const submitTerminate = async () => {
     if (!terminateModal) return;
+    const apiBase = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
     setTerminateSubmitting(true);
     setTerminateFeedback(null);
     try {
       const token = localStorage.getItem('adminToken');
       const response = await fetch(
-        `/api/admin/sessions/${terminateModal.exchange_id}/terminate`,
+        `${apiBase}/admin/sessions/${terminateModal.exchange_id}/terminate`,
         {
           method: 'POST',
           headers: {
@@ -151,12 +152,13 @@ export const AdminReports: React.FC = () => {
 
   const submitEscrowTransfer = async () => {
     if (!escrowModal) return;
+    const apiBase = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
     setEscrowSubmitting(true);
     setEscrowFeedback(null);
     try {
       const token = localStorage.getItem('adminToken');
       const response = await fetch(
-        `/api/admin/sessions/${escrowModal.session.exchange_id}/resolve-escrow`,
+        `${apiBase}/admin/sessions/${escrowModal.session.exchange_id}/resolve-escrow`,
         {
           method: 'POST',
           headers: {
@@ -230,9 +232,10 @@ export const AdminReports: React.FC = () => {
   }, []);
 
   const fetchAnalytics = async () => {
+    const apiBase = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
     try {
       const token = localStorage.getItem('adminToken');
-      const response = await fetch('/api/admin/analytics', {
+      const response = await fetch(`${apiBase}/admin/analytics`, {
         headers: {
           'Authorization': `Bearer ${token}`
         }
@@ -250,10 +253,11 @@ export const AdminReports: React.FC = () => {
   };
 
   const fetchExchanges = async () => {
+    const apiBase = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
     setDetailLoading(true);
     try {
       const token = localStorage.getItem('adminToken');
-      const response = await fetch('/api/admin/analytics/exchanges', {
+      const response = await fetch(`${apiBase}/admin/analytics/exchanges`, {
         headers: {
           'Authorization': `Bearer ${token}`
         }
@@ -279,10 +283,11 @@ export const AdminReports: React.FC = () => {
   };
 
   const fetchSkills = async () => {
+    const apiBase = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
     setDetailLoading(true);
     try {
       const token = localStorage.getItem('adminToken');
-      const response = await fetch('/api/admin/analytics/skills', {
+      const response = await fetch(`${apiBase}/admin/analytics/skills`, {
         headers: {
           'Authorization': `Bearer ${token}`
         }
@@ -300,10 +305,11 @@ export const AdminReports: React.FC = () => {
   };
 
   const fetchSessions = async () => {
+    const apiBase = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
     setDetailLoading(true);
     try {
       const token = localStorage.getItem('adminToken');
-      const response = await fetch('/api/admin/analytics/sessions', {
+      const response = await fetch(`${apiBase}/admin/analytics/sessions`, {
         headers: {
           'Authorization': `Bearer ${token}`
         }
