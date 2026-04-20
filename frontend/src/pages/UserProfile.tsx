@@ -60,8 +60,10 @@ export const UserProfile: React.FC = () => {
       try {
         setLoading(true);
 
+        const apiBase = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
+
         // Fetch user basic info
-        const userResponse = await fetch(`/api/users/${userId}`, {
+        const userResponse = await fetch(`${apiBase}/users/${userId}`, {
           headers: { 'Authorization': `Bearer ${token}` }
         });
         
@@ -71,7 +73,7 @@ export const UserProfile: React.FC = () => {
         }
 
         // Fetch user stats
-        const statsResponse = await fetch(`/api/users/${userId}/stats`, {
+        const statsResponse = await fetch(`${apiBase}/users/${userId}/stats`, {
           headers: { 'Authorization': `Bearer ${token}` }
         });
         
@@ -81,7 +83,7 @@ export const UserProfile: React.FC = () => {
         }
 
         // Fetch user skills
-        const skillsResponse = await fetch(`/api/users/${userId}/skills`, {
+        const skillsResponse = await fetch(`${apiBase}/users/${userId}/skills`, {
           headers: { 'Authorization': `Bearer ${token}` }
         });
         
@@ -91,7 +93,7 @@ export const UserProfile: React.FC = () => {
         }
 
         // Fetch user reviews
-        const reviewsResponse = await fetch(`/api/users/${userId}/reviews`, {
+        const reviewsResponse = await fetch(`${apiBase}/users/${userId}/reviews`, {
           headers: { 'Authorization': `Bearer ${token}` }
         });
 
