@@ -68,7 +68,7 @@ export const ChangePassword: React.FC = () => {
 
     try {
       const token = localStorage.getItem('token');
-      const response = await fetch('/api/auth/change-password', {
+      const response = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:5000/api'}/auth/change-password`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

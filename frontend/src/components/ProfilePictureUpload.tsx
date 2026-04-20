@@ -53,7 +53,7 @@ export const ProfilePictureUpload: React.FC<ProfilePictureUploadProps> = ({
       formData.append('profilePicture', file);
 
       const token = localStorage.getItem('token');
-      const response = await fetch('/api/auth/upload-profile-picture', {
+      const response = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:5000/api'}/auth/upload-profile-picture`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`
@@ -95,7 +95,7 @@ export const ProfilePictureUpload: React.FC<ProfilePictureUploadProps> = ({
       setIsUploading(true);
       
       const token = localStorage.getItem('token');
-      const response = await fetch('/api/auth/delete-profile-picture', {
+      const response = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:5000/api'}/auth/delete-profile-picture`, {
         method: 'DELETE',
         headers: {
           'Authorization': `Bearer ${token}`

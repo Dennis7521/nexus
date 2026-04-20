@@ -30,7 +30,7 @@ export const ForgotPassword: React.FC = () => {
     setError('');
 
     try {
-      const response = await fetch('/api/auth/forgot-password', {
+      const response = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:5000/api'}/auth/forgot-password`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email }),
@@ -55,7 +55,7 @@ export const ForgotPassword: React.FC = () => {
     setVerifyingCode(true);
     setError('');
     try {
-      const response = await fetch('/api/auth/verify-reset-code', {
+      const response = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:5000/api'}/auth/verify-reset-code`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email, code: enteredCode }),
@@ -83,7 +83,7 @@ export const ForgotPassword: React.FC = () => {
 
     setLoading(true);
     try {
-      const response = await fetch('/api/auth/reset-password', {
+      const response = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:5000/api'}/auth/reset-password`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email, code, newPassword }),

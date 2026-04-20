@@ -42,7 +42,7 @@ export const Dashboard: React.FC = () => {
       const token = localStorage.getItem('token');
       if (!token) return;
       try {
-        const res = await fetch('/api/auth/stats', {
+        const res = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:5000/api'}/auth/stats`, {
           headers: { 'Authorization': `Bearer ${token}` },
           cache: 'no-store'
         });

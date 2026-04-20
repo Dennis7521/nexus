@@ -1,6 +1,9 @@
 import React, { createContext, useContext, useState, useEffect, type ReactNode } from 'react';
 import axios from 'axios';
 
+// Configure axios base URL
+axios.defaults.baseURL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
+
 export interface Transaction {
   id: string;
   type: 'earned' | 'spent';

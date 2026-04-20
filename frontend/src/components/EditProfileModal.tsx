@@ -111,7 +111,7 @@ export const EditProfileModal: React.FC<EditProfileModalProps> = ({ isOpen, onCl
       const formData = new FormData();
       formData.append('transcript', transcriptFile);
 
-      const response = await fetch('/api/auth/upload-transcript', {
+      const response = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:5000/api'}/auth/upload-transcript`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${localStorage.getItem('token')}`
@@ -139,7 +139,7 @@ export const EditProfileModal: React.FC<EditProfileModalProps> = ({ isOpen, onCl
     if (!confirm('Are you sure you want to remove your transcript?')) return;
 
     try {
-      const response = await fetch('/api/auth/delete-transcript', {
+      const response = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:5000/api'}/auth/delete-transcript`, {
         method: 'DELETE',
         headers: {
           'Authorization': `Bearer ${localStorage.getItem('token')}`
@@ -164,7 +164,7 @@ export const EditProfileModal: React.FC<EditProfileModalProps> = ({ isOpen, onCl
       console.log('Sending profile update:', formData);
       
       // Send update to backend API
-      const response = await fetch('/api/auth/profile', {
+      const response = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:5000/api'}/auth/profile`, {
         method: 'PUT',
         headers: {
           'Content-Type': 'application/json',

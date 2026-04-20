@@ -60,7 +60,7 @@ export const Profile: React.FC = () => {
 
       try {
         // Fetch stats
-        const statsResponse = await fetch('/api/auth/stats', {
+        const statsResponse = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:5000/api'}/auth/stats`, {
           headers: { 'Authorization': `Bearer ${token}` },
           cache: 'no-store'
         });
@@ -71,7 +71,7 @@ export const Profile: React.FC = () => {
         }
 
         // Fetch user skills
-        const skillsResponse = await fetch('/api/auth/my-skills', {
+        const skillsResponse = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:5000/api'}/auth/my-skills`, {
           headers: { 'Authorization': `Bearer ${token}` }
         });
         
@@ -81,7 +81,7 @@ export const Profile: React.FC = () => {
         }
 
         // Fetch exchange history
-        const historyResponse = await fetch('/api/auth/exchange-history', {
+        const historyResponse = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:5000/api'}/auth/exchange-history`, {
           headers: { 'Authorization': `Bearer ${token}` }
         });
         
@@ -91,7 +91,7 @@ export const Profile: React.FC = () => {
         }
 
         // Fetch reviews
-        const reviewsResponse = await fetch('/api/auth/reviews', {
+        const reviewsResponse = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:5000/api'}/auth/reviews`, {
           headers: { 'Authorization': `Bearer ${token}` }
         });
         
