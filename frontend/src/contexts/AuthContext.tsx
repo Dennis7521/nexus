@@ -112,8 +112,8 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
           const response = await axios.get('/auth/me');
           const userData = response.data.user;
           
-          // Convert full URL to relative path for profile picture
-          if (userData.profilePictureUrl && userData.profilePictureUrl.startsWith('http')) {
+          // Keep Cloudinary URLs intact, only convert local backend URLs
+          if (userData.profilePictureUrl && userData.profilePictureUrl.startsWith('http') && !userData.profilePictureUrl.includes('cloudinary.com')) {
             userData.profilePictureUrl = new URL(userData.profilePictureUrl).pathname;
           }
           
@@ -203,8 +203,8 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         return { mustChangePassword: true, user: userData };
       }
       
-      // Convert full URL to relative path for profile picture
-      if (userData.profilePictureUrl && userData.profilePictureUrl.startsWith('http')) {
+      // Keep Cloudinary URLs intact, only convert local backend URLs
+      if (userData.profilePictureUrl && userData.profilePictureUrl.startsWith('http') && !userData.profilePictureUrl.includes('cloudinary.com')) {
         userData.profilePictureUrl = new URL(userData.profilePictureUrl).pathname;
       }
       
@@ -354,8 +354,8 @@ setUser(updatedUser);
         const response = await axios.get('/auth/me');
         const userData = response.data.user;
         
-        // Convert full URL to relative path for profile picture
-        if (userData.profilePictureUrl && userData.profilePictureUrl.startsWith('http')) {
+        // Keep Cloudinary URLs intact, only convert local backend URLs
+        if (userData.profilePictureUrl && userData.profilePictureUrl.startsWith('http') && !userData.profilePictureUrl.includes('cloudinary.com')) {
           userData.profilePictureUrl = new URL(userData.profilePictureUrl).pathname;
         }
         
