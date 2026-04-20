@@ -69,10 +69,22 @@ export const ProfilePictureUpload: React.FC<ProfilePictureUploadProps> = ({
       console.log('Frontend: Upload response:', data);
       console.log('Frontend: profilePictureUrl from backend:', data.profilePictureUrl);
       
-      // Extract just the path (Vite proxy will handle the backend URL)
-      const imageUrl = data.profilePictureUrl.startsWith('http')
-        ? new URL(data.profilePictureUrl).pathname
-        : data.profilePictureUrl;
+      // For Cloudinary or any external URLs, use the full URL
+      // Only extract pathname for local backend URLs
+      let imageUrl;
+      if (data.profilePictureUrl.includes('cloudinary.com')) {
+        // Cloudinary URL - use full URL
+        imageUrl = data.profilePictureUrl;
+      } else if (data.profilePictureUrl.startsWith('http')) {
+        // Other HTTP URL - check if it's our backend
+        const url = new URL(data.profilePictureUrl);
+        const isLocalBackend = url.hostname.includes('localhost') || 
+                              url.hostname.includes('railway.app');
+        imageUrl = isLocalBackend ? url.pathname : data.profilePictureUrl;
+      } else {
+        // Relative URL
+        imageUrl = data.profilePictureUrl;
+      }
       
       console.log('Frontend: Final imageUrl (proxied):', imageUrl);
       console.log('Frontend: Calling onImageChange with:', imageUrl);

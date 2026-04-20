@@ -162,7 +162,7 @@ export const UserProfile: React.FC = () => {
         <div className="card mb-8" style={{ boxShadow: 'var(--shadow-md)' }}>
           <div className="flex gap-8 items-start">
             <ProfilePicture
-              imageUrl={userData.profilePictureUrl ? (userData.profilePictureUrl.startsWith('http') ? new URL(userData.profilePictureUrl).pathname : userData.profilePictureUrl) : undefined}
+              imageUrl={userData.profilePictureUrl ? (userData.profilePictureUrl.includes('cloudinary.com') ? userData.profilePictureUrl : userData.profilePictureUrl.startsWith('http') ? new URL(userData.profilePictureUrl).pathname : userData.profilePictureUrl) : undefined}
               initials={initials}
               size="lg"
             />
