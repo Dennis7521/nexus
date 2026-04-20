@@ -399,9 +399,11 @@ export const UserProfile: React.FC = () => {
                           <div className="flex items-center gap-3">
                             <ProfilePicture
                               imageUrl={review.reviewer_picture
-                                ? (review.reviewer_picture.startsWith('http')
-                                    ? new URL(review.reviewer_picture).pathname
-                                    : review.reviewer_picture)
+                                ? (review.reviewer_picture.includes('cloudinary.com')
+                                    ? review.reviewer_picture
+                                    : review.reviewer_picture.startsWith('http')
+                                      ? new URL(review.reviewer_picture).pathname
+                                      : review.reviewer_picture)
                                 : undefined}
                               initials={review.reviewer_name?.split(' ').map((n: string) => n[0]).join('') || '?'}
                               size="sm"
