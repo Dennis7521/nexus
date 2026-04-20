@@ -8,7 +8,7 @@
 -- ============================================================================
 
 -- Create database (run this separately)
--- CREATE DATABASE nexus_db;
+--CREATE DATABASE nexus_db;
 
 -- Enable UUID extension
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";

@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { X, Clock, User, CreditCard } from 'lucide-react';
+import { X } from 'lucide-react';
 
 interface ExchangeConfirmModalProps {
   isOpen: boolean;

@@ -65,7 +65,7 @@ export const Browse: React.FC = () => {
     return matchesSearch && matchesCategory;
   });
 
-  const handleExchangeRequest = async (skillTitle: string, instructorName: string) => {
+  const handleExchangeRequest = async (skillId: string, skillTitle: string, instructorName: string) => {
     if (!user) {
       alert('Please log in to request exchanges');
       return;
@@ -85,9 +85,8 @@ export const Browse: React.FC = () => {
       const instructorUser = await userResponse.json();
       
       const success = await sendExchangeRequest(
-        skillTitle,
-        instructorName,
-        instructorUser.id.toString(),
+        parseInt(skillId),
+        1,
         `Hi ${firstName}! I would love to learn ${skillTitle} from you.`
       );
 
@@ -252,7 +251,7 @@ export const Browse: React.FC = () => {
                     
                     {/* Request Exchange Button */}
                     <button 
-                      onClick={() => handleExchangeRequest(skill.title, instructorName)}
+                      onClick={() => handleExchangeRequest(skill.id, skill.title, instructorName)}
                       className="w-full py-2.5 px-4 rounded-lg font-medium text-sm transition-all"
                       style={{ 
                         background: skill.user_id === user?.id ? 'rgba(255, 255, 255, 0.2)' : 'white',

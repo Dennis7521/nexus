@@ -59,7 +59,8 @@ interface CycleData {
 type Modal =
   | { type: 'create_session' }
   | { type: 'rate'; session: SyncSession }
-  | { type: 'session_detail'; session: SyncSession };
+  | { type: 'session_detail'; session: SyncSession }
+  | { type: 'verify_code'; session: SyncSession };
 
 export default function SyncExchangeWorkspace() {
   const { cycleId } = useParams<{ cycleId: string }>();
@@ -97,6 +98,10 @@ export default function SyncExchangeWorkspace() {
   // Instructor rating (shown when cycle is completed)
   const [myReview, setMyReview] = useState<{ rating: number; comment: string | null; reviewee_name?: string } | null>(null);
   const [reviewLoaded, setReviewLoaded] = useState(false);
+
+  // Verification code and confirmation notes
+  const [verifyCode, setVerifyCode] = useState('');
+  const [confirmNotes, setConfirmNotes] = useState('');
   const [ratingValue, setRatingValue] = useState(0);
   const [ratingHover, setRatingHover] = useState(0);
   const [ratingComment, setRatingComment] = useState('');
@@ -285,11 +290,57 @@ export default function SyncExchangeWorkspace() {
     }
   };
 
-  const myConfirmed = (session: SyncSession) =>
+  const _myConfirmed = (session: SyncSession) =>
     user?.id ? !!session.confirmations?.[user.id]?.confirmed : false;
 
-  const confirmedCount = (session: SyncSession) =>
+  const _confirmedCount = (session: SyncSession) =>
     Object.keys(session.confirmations || {}).length;
+
+  const handleVerifyCode = async (session: SyncSession) => {
+    setActionLoading(true);
+    try {
+      const res = await fetch(`${API}/sync-exchanges/sessions/${session.id}/verify`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('token')}`
+        },
+        body: JSON.stringify({ verification_code: verifyCode })
+      });
+      if (!res.ok) throw new Error('Verification failed');
+      showToast('success', 'Attendance confirmed!');
+      setModal(null);
+      setVerifyCode('');
+      fetchWorkspace();
+    } catch (e: any) {
+      showToast('error', e.message);
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  const handleConfirm = async (session: SyncSession) => {
+    setActionLoading(true);
+    try {
+      const res = await fetch(`${API}/sync-exchanges/sessions/${session.id}/confirm`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('token')}`
+        },
+        body: JSON.stringify({ notes: confirmNotes })
+      });
+      if (!res.ok) throw new Error('Confirmation failed');
+      showToast('success', 'Session confirmed!');
+      setModal(null);
+      setConfirmNotes('');
+      fetchWorkspace();
+    } catch (e: any) {
+      showToast('error', e.message);
+    } finally {
+      setActionLoading(false);
+    }
+  };
 
   if (loading) {
     return (

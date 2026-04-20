@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Clock, MapPin, BookOpen, DollarSign, Upload, X } from 'lucide-react';
+import { Clock, BookOpen, Upload, X } from 'lucide-react';
 import { useToast, ToastContainer } from '../components/Toast';
 
 export const CreateSkill: React.FC = () => {
@@ -8,7 +8,7 @@ export const CreateSkill: React.FC = () => {
   const { toasts, success, error, removeToast } = useToast();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [backgroundImage, setBackgroundImage] = useState<string | null>(null);
-  const [imageFile, setImageFile] = useState<File | null>(null);
+  const [_imageFile, setImageFile] = useState<File | null>(null);
   const [formData, setFormData] = useState({
     title: '',
     description: '',
@@ -73,7 +73,7 @@ export const CreateSkill: React.FC = () => {
 
     try {
       // Convert tags string to array
-      const tagsArray = formData.tags.split(',').map(tag => tag.trim()).filter(tag => tag);
+      const _tagsArray = formData.tags.split(',').map(tag => tag.trim()).filter(tag => tag);
 
       const skillData = {
         title: formData.title,

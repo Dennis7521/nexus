@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { Clock, MapPin, BookOpen, DollarSign, Upload, X } from 'lucide-react';
+import { Clock, BookOpen, Upload, X } from 'lucide-react';
 import { useToast, ToastContainer } from '../components/Toast';
 
 export const EditSkill: React.FC = () => {
@@ -10,7 +10,7 @@ export const EditSkill: React.FC = () => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [loading, setLoading] = useState(true);
   const [backgroundImage, setBackgroundImage] = useState<string | null>(null);
-  const [imageFile, setImageFile] = useState<File | null>(null);
+  const [_imageFile, setImageFile] = useState<File | null>(null);
   const [formData, setFormData] = useState({
     title: '',
     description: '',
