@@ -82,7 +82,7 @@ export const Browse: React.FC = () => {
         throw new Error(`Could not find ${instructorName} in database`);
       }
       
-      const instructorUser = await userResponse.json();
+      await userResponse.json();
       
       const success = await sendExchangeRequest(
         parseInt(skillId),

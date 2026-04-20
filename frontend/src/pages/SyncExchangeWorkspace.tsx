@@ -290,12 +290,6 @@ export default function SyncExchangeWorkspace() {
     }
   };
 
-  const _myConfirmed = (session: SyncSession) =>
-    user?.id ? !!session.confirmations?.[user.id]?.confirmed : false;
-
-  const _confirmedCount = (session: SyncSession) =>
-    Object.keys(session.confirmations || {}).length;
-
   const handleVerifyCode = async (session: SyncSession) => {
     setActionLoading(true);
     try {

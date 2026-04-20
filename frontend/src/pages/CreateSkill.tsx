@@ -72,9 +72,6 @@ export const CreateSkill: React.FC = () => {
     setIsSubmitting(true);
 
     try {
-      // Convert tags string to array
-      const _tagsArray = formData.tags.split(',').map(tag => tag.trim()).filter(tag => tag);
-
       const skillData = {
         title: formData.title,
         description: formData.description,
