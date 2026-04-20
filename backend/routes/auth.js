@@ -6,7 +6,7 @@ const OTP = require('../models/OTP');
 const PasswordReset = require('../models/PasswordReset');
 const emailService = require('../services/emailService');
 const { generateToken, authenticateToken } = require('../middleware/auth');
-const { uploadProfilePicture, uploadTranscript } = require('../middleware/upload');
+const { uploadProfilePicture, uploadTranscript, uploadToCloudinary, cloudinary } = require('../middleware/upload');
 const { triggerMatchingJobsOnLogin } = require('../jobs/matchingJobs');
 const path = require('path');
 const fs = require('fs');
@@ -758,21 +758,35 @@ router.post('/upload-profile-picture', authenticateToken, uploadProfilePicture.s
     }
 
     const userId = req.user.id;
-    const relativePath = `/uploads/profile-pictures/${req.file.filename}`;
-    const profilePictureUrl = `${req.protocol}://${req.get('host')}${relativePath}`;
+    const localFilePath = req.file.path;
+    
+    let profilePictureUrl;
+    
+    // Upload to Cloudinary if configured
+    if (process.env.CLOUDINARY_URL) {
+      profilePictureUrl = await uploadToCloudinary(localFilePath, 'nexus/profile-pictures');
+      console.log('Profile picture uploaded to Cloudinary:', profilePictureUrl);
+    } else {
+      // Fallback to local storage for development
+      profilePictureUrl = `/uploads/profile-pictures/${req.file.filename}`;
+    }
 
     // Get user's old profile picture
     const user = await User.findById(userId);
-    const oldPicture = user?.profile_picture_url;
+    const oldPictureUrl = user?.profile_picture_url;
 
-    // Update user's profile picture in database (store relative path)
-    await User.updateProfilePicture(userId, relativePath);
+    // Update user's profile picture in database
+    await User.updateProfilePicture(userId, profilePictureUrl);
 
-    // Delete old profile picture if it exists
-    if (oldPicture) {
-      const oldPicturePath = path.join(__dirname, '..', oldPicture);
-      if (fs.existsSync(oldPicturePath)) {
-        fs.unlinkSync(oldPicturePath);
+    // Delete old Cloudinary image if it exists
+    if (oldPictureUrl && oldPictureUrl.includes('cloudinary.com') && process.env.CLOUDINARY_URL) {
+      try {
+        // Extract public_id from Cloudinary URL
+        const publicId = oldPictureUrl.split('/').pop().split('.')[0];
+        await cloudinary.uploader.destroy(`nexus/profile-pictures/${publicId}`);
+        console.log('Old Cloudinary image deleted:', publicId);
+      } catch (deleteError) {
+        console.log('Could not delete old Cloudinary image:', deleteError.message);
       }
     }
 
@@ -783,12 +797,9 @@ router.post('/upload-profile-picture', authenticateToken, uploadProfilePicture.s
   } catch (error) {
     console.error('Upload profile picture error:', error);
     
-    // Delete uploaded file if database update fails
-    if (req.file) {
-      const filePath = req.file.path;
-      if (fs.existsSync(filePath)) {
-        fs.unlinkSync(filePath);
-      }
+    // Delete local uploaded file if upload fails
+    if (req.file && req.file.path && fs.existsSync(req.file.path)) {
+      fs.unlinkSync(req.file.path);
     }
     
     res.status(500).json({
@@ -1125,11 +1136,23 @@ router.delete('/delete-profile-picture', authenticateToken, async (req, res) => 
       return res.status(404).json({ message: 'No profile picture found' });
     }
 
-    const picturePath = path.join(__dirname, '..', user.profile_picture_url);
+    const pictureUrl = user.profile_picture_url;
     
-    // Delete file from filesystem
-    if (fs.existsSync(picturePath)) {
-      fs.unlinkSync(picturePath);
+    // Delete from Cloudinary if it's a Cloudinary URL
+    if (pictureUrl.includes('cloudinary.com') && process.env.CLOUDINARY_URL) {
+      try {
+        const publicId = pictureUrl.split('/').pop().split('.')[0];
+        await cloudinary.uploader.destroy(`nexus/profile-pictures/${publicId}`);
+        console.log('Deleted from Cloudinary:', publicId);
+      } catch (cloudinaryError) {
+        console.log('Could not delete from Cloudinary:', cloudinaryError.message);
+      }
+    } else {
+      // Fallback: delete from local filesystem
+      const picturePath = path.join(__dirname, '..', pictureUrl);
+      if (fs.existsSync(picturePath)) {
+        fs.unlinkSync(picturePath);
+      }
     }
 
     // Remove from database

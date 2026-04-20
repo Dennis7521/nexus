@@ -1,8 +1,19 @@
 const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
+const { v2: cloudinary } = require('cloudinary');
 
-// Ensure uploads directories exist
+// Configure Cloudinary
+if (process.env.CLOUDINARY_URL) {
+  cloudinary.config({
+    secure: true
+  });
+  console.log('Cloudinary configured successfully');
+} else {
+  console.log('Warning: CLOUDINARY_URL not set, using local storage fallback');
+}
+
+// Ensure uploads directories exist (fallback for local development)
 const profilePicturesDir = path.join(__dirname, '../uploads/profile-pictures');
 const transcriptsDir = path.join(__dirname, '../uploads/transcripts');
 
@@ -14,7 +25,7 @@ if (!fs.existsSync(transcriptsDir)) {
   fs.mkdirSync(transcriptsDir, { recursive: true });
 }
 
-// Configure storage for profile pictures
+// Configure storage for profile pictures (temporary for Cloudinary upload)
 const profilePictureStorage = multer.diskStorage({
   destination: function (req, file, cb) {
     cb(null, profilePicturesDir);
@@ -26,6 +37,33 @@ const profilePictureStorage = multer.diskStorage({
     cb(null, req.user.id + '-' + uniqueSuffix + ext);
   }
 });
+
+// Upload to Cloudinary function
+const uploadToCloudinary = async (filePath, folder = 'profile-pictures') => {
+  try {
+    const result = await cloudinary.uploader.upload(filePath, {
+      folder: folder,
+      use_filename: true,
+      unique_filename: true,
+      overwrite: true,
+      transformation: [
+        { width: 400, height: 400, crop: 'fill', gravity: 'face' }
+      ]
+    });
+    
+    // Delete local file after successful upload
+    try {
+      fs.unlinkSync(filePath);
+    } catch (unlinkErr) {
+      console.log('Could not delete local temp file:', unlinkErr.message);
+    }
+    
+    return result.secure_url;
+  } catch (error) {
+    console.error('Cloudinary upload error:', error);
+    throw error;
+  }
+};
 
 // Configure storage for transcripts
 const transcriptStorage = multer.diskStorage({
@@ -86,5 +124,7 @@ const uploadTranscript = multer({
 
 module.exports = {
   uploadProfilePicture,
-  uploadTranscript
+  uploadTranscript,
+  uploadToCloudinary,
+  cloudinary
 };
