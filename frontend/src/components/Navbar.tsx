@@ -322,7 +322,7 @@ export const Navbar: React.FC = () => {
                   >
                     {user?.profilePictureUrl ? (
                       <img 
-                        src={user.profilePictureUrl.startsWith('http') ? new URL(user.profilePictureUrl).pathname : user.profilePictureUrl} 
+                        src={user.profilePictureUrl.includes('cloudinary.com') ? user.profilePictureUrl : user.profilePictureUrl.startsWith('http') ? new URL(user.profilePictureUrl).pathname : user.profilePictureUrl} 
                         alt={`${user.firstName} ${user.lastName}`}
                         className="w-full h-full object-cover"
                       />

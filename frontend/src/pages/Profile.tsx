@@ -125,7 +125,7 @@ export const Profile: React.FC = () => {
       <div className="card mb-8" style={{ boxShadow: 'var(--shadow-md)' }}>
         <div className="flex gap-8 items-start">
           <ProfilePictureUpload
-            currentImage={user?.profilePictureUrl ? (user.profilePictureUrl.startsWith('http') ? new URL(user.profilePictureUrl).pathname : user.profilePictureUrl) : undefined}
+            currentImage={user?.profilePictureUrl ? (user.profilePictureUrl.includes('cloudinary.com') ? user.profilePictureUrl : user.profilePictureUrl.startsWith('http') ? new URL(user.profilePictureUrl).pathname : user.profilePictureUrl) : undefined}
             onImageChange={updateProfilePicture}
             size="lg"
             initials={`${user?.firstName?.[0] || ''}${user?.lastName?.[0] || ''}`}
