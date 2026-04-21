@@ -32,7 +32,7 @@ class User {
   // Find user by email
   static async findByEmail(email) {
     const result = await query(
-      'SELECT * FROM users WHERE email = $1 AND is_active = true',
+      'SELECT * FROM users WHERE email = $1 AND is_active = true AND email_verified = true',
       [email]
     );
     return result.rows[0];
