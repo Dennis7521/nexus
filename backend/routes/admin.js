@@ -478,6 +478,15 @@ router.post('/send-message', authenticateAdmin, async (req, res) => {
     // We'll use a fixed UUID that represents the system admin
     const NEXUS_ADMIN_ID = '00000000-0000-0000-0000-000000000000';
 
+    // Ensure the NEXUS Admin system user exists in the users table so the
+    // messages.sender_id FK is satisfied. This is idempotent.
+    await pool.query(
+      `INSERT INTO users (id, student_id, email, password_hash, first_name, last_name, is_active, email_verified)
+       VALUES ($1, 'NEXUS_ADMIN', 'nexus-admin@system.local', '!', 'NEXUS', 'Admin', true, true)
+       ON CONFLICT (id) DO NOTHING`,
+      [NEXUS_ADMIN_ID]
+    );
+
     // Insert the message into the messages table
     // The message will appear as coming from NEXUS Admin with no exchange_request_id
     await pool.query(
