@@ -199,7 +199,6 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   const login = async (email: string, password: string) => {
     try {
       const response = await axios.post('/auth/login', { email, password });
-      console.log('Login response data:', response.data);
       const { user: userData, token: userToken, mustChangePassword } = response.data;
       
       // If must change password, return early with flag

@@ -29,9 +29,7 @@ export const Login: React.FC = () => {
     setLoading(true);
 
     try {
-      console.log('Attempting login with email:', email);
       const result = await login(email, password);
-      console.log('Login result:', result);
       
       // Check if user must change password
       if (result && result.mustChangePassword) {
@@ -41,7 +39,6 @@ export const Login: React.FC = () => {
         return;
       }
       
-      console.log('Login successful - normal flow');
     } catch (err: any) {
       console.error('Login error:', err);
       setError(err.message || 'Login failed');
