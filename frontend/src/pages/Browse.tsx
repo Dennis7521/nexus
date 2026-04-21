@@ -85,7 +85,7 @@ export const Browse: React.FC = () => {
       await userResponse.json();
       
       const success = await sendExchangeRequest(
-        parseInt(skillId),
+        skillId,
         1,
         `Hi ${firstName}! I would love to learn ${skillTitle} from you.`
       );

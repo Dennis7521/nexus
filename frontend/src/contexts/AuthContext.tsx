@@ -69,7 +69,7 @@ interface AuthContextType {
   getIncomingRequests: () => ExchangeRequest[];
   acceptRequest: (requestId: string) => void;
   rejectRequest: (requestId: string) => void;
-  sendExchangeRequest: (skillId: number, sessionCount?: number, message?: string) => Promise<boolean>;
+  sendExchangeRequest: (skillId: string, sessionCount?: number, message?: string) => Promise<boolean>;
   loadExchangeRequests: () => Promise<void>;
 }
 
@@ -585,7 +585,7 @@ setUser(updatedUser);
     }
   };
 
-  const sendExchangeRequest = async (skillId: number, sessionCount: number = 1, message?: string): Promise<boolean> => {
+  const sendExchangeRequest = async (skillId: string, sessionCount: number = 1, message?: string): Promise<boolean> => {
     if (!user) return false;
 
     try {

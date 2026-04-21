@@ -138,7 +138,7 @@ export const Dashboard: React.FC = () => {
       const firstName = instructorName.split(' ')[0];
       
       const requestSuccess = await sendExchangeRequest(
-        parseInt(skillId),
+        skillId,
         1, // Default to 1 session, can be changed in ExchangeConfirmModal
         `Hi ${firstName}! I would love to learn ${skillTitle} from you. I'm excited to exchange knowledge and skills with you!`
       );
