@@ -105,6 +105,7 @@ export const Login: React.FC = () => {
                   required
                   className="input"
                   placeholder="Email or username"
+                  autoComplete="username"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                 />
@@ -121,6 +122,7 @@ export const Login: React.FC = () => {
                   required
                   className="input"
                   placeholder="Password"
+                  autoComplete="current-password"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                 />
