@@ -9,7 +9,7 @@ dist-ssr
 *.local
 build
 
-# Environment files - NEVER commit these
+# Environment files - 
 .env
 .env.local
 .env.*.local
@@ -47,7 +47,7 @@ docs/
 *.sqlite
 *.sqlite3
 
-# Uploads (except default placeholders)
+# Uploads 
 backend/uploads/profile-pictures/*
 !backend/uploads/profile-pictures/.gitkeep
 backend/uploads/transcripts/*

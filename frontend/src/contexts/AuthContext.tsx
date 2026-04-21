@@ -105,12 +105,19 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     }
   }, [token]);
 
-  // Check if user is authenticated on app load via httpOnly cookie (no localStorage)
+  // Check if user is authenticated on app load via httpOnly cookie or localStorage token
   useEffect(() => {
     const checkAuth = async () => {
       try {
-          const response = await axios.get('/auth/me');
-          const userData = response.data.user;
+        // First, try to restore token from localStorage (fallback when cookies fail cross-domain)
+        const storedToken = localStorage.getItem('token');
+        if (storedToken) {
+          setToken(storedToken);
+          axios.defaults.headers.common['Authorization'] = `Bearer ${storedToken}`;
+        }
+
+        const response = await axios.get('/auth/me');
+        const userData = response.data.user;
           
           // Keep Cloudinary URLs intact, only convert local backend URLs
           if (userData.profilePictureUrl && userData.profilePictureUrl.startsWith('http') && !userData.profilePictureUrl.includes('cloudinary.com')) {
