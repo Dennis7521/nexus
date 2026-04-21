@@ -196,7 +196,7 @@ export const ForgotPassword: React.FC = () => {
                   className="w-full px-4 py-3 border rounded-xl focus:outline-none focus:ring-2 transition-colors placeholder-white placeholder-opacity-70"
                   style={inputStyle}
                   placeholder="202200358@ub.ac.bw"
-                  pattern="\d{9}@ub\.ac\.bw"
+                  pattern="\d{9,10}@ub\.ac\.bw"
                   title="Must be a valid UB email (studentID@ub.ac.bw)"
                   required
                 />

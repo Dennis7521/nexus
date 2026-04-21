@@ -19,7 +19,7 @@ Final Year Project/
 - **Payments**: Stripe (Credit Store)
 - **Email**: Resend.com (OTP verification, password reset emails)
 - **Video Meetings**: Jitsi (auto-generated anonymous rooms)
-- **File Storage**: Local (Multer — profile pictures & academic transcripts)
+- **File Storage**: Cloudinary (profile pictures) + local disk via Multer (academic transcripts)
 - **Scheduling**: node-cron (background matching jobs)
 
 ## Core Features
@@ -75,8 +75,8 @@ Final Year Project/
 - **Notification System**: Unread message and request indicators
 
 ### User Profiles
-- **Profile Pictures**: Upload and manage profile photos (publicly served)
-- **Academic Transcripts**: Optional transcript upload with authenticated access (only owner or admin can view)
+- **Profile Pictures**: Upload and manage profile photos stored on Cloudinary (CDN-delivered, auto-cropped to 400x400 with face detection)
+- **Academic Transcripts**: Optional PDF transcript upload stored locally with authenticated access (only owner or admin can view)
 - **Ratings & Reviews**: Unified rating system merging both async exchange reviews and sync cycle reviews
 - **Availability Settings**: Set when you're available to teach/learn
 
@@ -145,6 +145,7 @@ Final Year Project/
 - PostgreSQL (v14+)
 - Resend.com account (for email)
 - Stripe account (for payments)
+- Cloudinary account (for profile picture storage)
 
 ### Installation
 
@@ -162,7 +163,7 @@ Final Year Project/
 
 3. **Environment Configuration**
    - Copy `.env.example` to `.env` in both `frontend/` and `backend/`
-   - Fill in your database URL, JWT secret, Resend API key, and Stripe keys
+   - Fill in your database URL, JWT secret, Resend API key, Stripe keys, and Cloudinary connection string (`CLOUDINARY_URL=cloudinary://<api_key>:<api_secret>@<cloud_name>`)
 
 4. **Start Development**
    ```bash
@@ -333,8 +334,9 @@ Final Year Project/
 - Admin-only protected routes with separate auth middleware
 - Authenticated transcript access (owner or admin only)
 - File upload validation (type and size)
+- Cloudinary secure HTTPS URLs for profile pictures
 - SQL injection prevention (parameterized queries)
-- Directory traversal prevention on file serving
+- Directory traversal prevention on transcript file serving
 - Escrow audit trail for all admin credit actions
 
 ## License

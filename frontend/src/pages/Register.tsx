@@ -46,9 +46,9 @@ export const Register: React.FC = () => {
     }
     
     // Validate student ID format
-    const studentIdRegex = /^20[0-2][0-9]\d{5}$/;
+    const studentIdRegex = /^20[0-2][0-9]\d{5,6}$/;
     if (!studentIdRegex.test(formData.studentId)) {
-      setError('Student ID must be 9 digits starting with a year from 2000-2029 (e.g., 202200358)');
+      setError('Student ID must be 9 or 10 digits starting with a year from 2000-2029 (e.g., 202200358)');
       return;
     }
     
@@ -206,8 +206,8 @@ export const Register: React.FC = () => {
                 type="text"
                 value={formData.studentId}
                 onChange={handleChange}
-                maxLength={9}
-                pattern="20[0-2][0-9]\d{5}"
+                maxLength={10}
+                pattern="20[0-2][0-9]\d{5,6}"
                 className="w-full px-4 py-3 border rounded-xl focus:outline-none focus:ring-2 transition-colors placeholder-white placeholder-opacity-70"
                 style={{
                   borderColor: 'rgba(255, 255, 255, 0.3)',
@@ -215,10 +215,10 @@ export const Register: React.FC = () => {
                   color: 'white'
                 }}
                 placeholder="202200358"
-                title="9 digits starting with year (2000-2029)"
+                title="9 or 10 digits starting with year (2000-2029)"
                 required
               />
-              <p className="text-xs text-white mt-1 opacity-80">9 digits starting with year (e.g., 202200358)</p>
+              <p className="text-xs text-white mt-1 opacity-80">9 or 10 digits starting with year (e.g., 202200358)</p>
             </div>
 
             <div>

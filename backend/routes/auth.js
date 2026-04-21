@@ -52,14 +52,14 @@ const otpLimiter = rateLimit({
 // Validation rules
 const registerValidation = [
   body('studentId')
-    .isLength({ min: 9, max: 9 })
-    .withMessage('Student ID must be exactly 9 digits')
-    .matches(/^20[0-2][0-9]\d{5}$/)
-    .withMessage('Student ID must be 9 digits starting with a year from 2000-2029 (e.g., 202200358)'),
+    .isLength({ min: 9, max: 10 })
+    .withMessage('Student ID must be 9 or 10 digits')
+    .matches(/^20[0-2][0-9]\d{5,6}$/)
+    .withMessage('Student ID must be 9 or 10 digits starting with a year from 2000-2029 (e.g., 202200358)'),
   body('email')
     .isEmail()
     .withMessage('Please provide a valid email address')
-    .matches(/^\d{9}@ub\.ac\.bw$/)
+    .matches(/^\d{9,10}@ub\.ac\.bw$/)
     .withMessage('Email must be in format: studentID@ub.ac.bw'),
   body('password')
     .isLength({ min: 8 })
@@ -90,7 +90,7 @@ const loginValidation = [
   body('email')
     .isEmail()
     .withMessage('Please provide a valid email address')
-    .matches(/^\d{9}@ub\.ac\.bw$/)
+    .matches(/^\d{9,10}@ub\.ac\.bw$/)
     .withMessage('Only University of Botswana student emails are allowed'),
   body('password')
     .notEmpty()
@@ -814,7 +814,7 @@ router.post('/forgot-password', [
   body('email')
     .isEmail()
     .withMessage('Please provide a valid email address')
-    .matches(/^\d{9}@ub\.ac\.bw$/)
+    .matches(/^\d{9,10}@ub\.ac\.bw$/)
     .withMessage('Only University of Botswana student emails are allowed')
 ], async (req, res) => {
   try {
@@ -875,7 +875,7 @@ router.post('/forgot-password', [
 router.post('/verify-reset-code', [
   body('email')
     .isEmail()
-    .matches(/^\d{9}@ub\.ac\.bw$/)
+    .matches(/^\d{9,10}@ub\.ac\.bw$/)
     .withMessage('Only University of Botswana student emails are allowed'),
   body('code')
     .isLength({ min: 6, max: 6 })
@@ -912,7 +912,7 @@ router.post('/reset-password', [
   body('email')
     .isEmail()
     .withMessage('Please provide a valid email address')
-    .matches(/^\d{9}@ub\.ac\.bw$/)
+    .matches(/^\d{9,10}@ub\.ac\.bw$/)
     .withMessage('Only University of Botswana student emails are allowed'),
   body('code')
     .isLength({ min: 6, max: 6 })
