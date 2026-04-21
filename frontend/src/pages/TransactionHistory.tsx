@@ -143,7 +143,7 @@ export const TransactionHistory: React.FC = () => {
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-sm text-gray-600 mb-1">Total Spent</p>
-                  <p className="text-3xl font-bold text-red-600">-{Number(summary.totalSpent).toFixed(2)}</p>
+                  <p className="text-3xl font-bold text-red-600">{Number(summary.totalSpent) > 0 ? '-' : ''}{Number(summary.totalSpent).toFixed(2)}</p>
                 </div>
                 <div className="w-12 h-12 border-2 border-red-600 rounded-full flex items-center justify-center">
                   <span className="text-2xl text-red-600">↑</span>

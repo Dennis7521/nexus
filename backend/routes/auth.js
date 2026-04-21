@@ -268,7 +268,7 @@ router.post('/verify-email', authLimiter, [
 
         // Update user's time_credits (atomic with the transaction record above)
         await welcomeClient.query(
-          'UPDATE users SET time_credits = time_credits + $1 WHERE id = $2',
+          'UPDATE users SET time_credits = COALESCE(time_credits, 0) + $1 WHERE id = $2',
           [WELCOME_CREDITS, verifiedUser.id]
         );
 
