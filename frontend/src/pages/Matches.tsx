@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { Navbar } from '../components/Navbar';
 import { useNavigate } from 'react-router-dom';
+import { useToast, ToastContainer } from '../components/Toast';
 
 interface AsyncMatch {
   id: number;
@@ -12,6 +13,8 @@ interface AsyncMatch {
   rating: number;
   ratingCount: number;
   skillName: string;
+  skillId: string | null;
+  creditsRequired: number | null;
   matchScore: number;
   status: string;
   createdAt: string;
@@ -55,8 +58,9 @@ interface CompletedExchange {
 }
 
 export default function Matches() {
-  const { user } = useAuth();
+  const { user, getAvailableCredits, sendExchangeRequest } = useAuth();
   const navigate = useNavigate();
+  const { toasts, success, error: toastError, removeToast } = useToast();
   const [activeTab, setActiveTab] = useState<'async' | 'cycles' | 'completed'>('cycles');
   const [asyncMatches, setAsyncMatches] = useState<AsyncMatch[]>([]);
   const [contactedMatches, setContactedMatches] = useState<AsyncMatch[]>([]);
@@ -65,7 +69,7 @@ export default function Matches() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [successMessage, setSuccessMessage] = useState('');
-  const [contactingId, setContactingId] = useState<number | null>(null);
+  const [requestingId, setRequestingId] = useState<number | null>(null);
 
   useEffect(() => {
     if (activeTab === 'async') {
@@ -210,62 +214,57 @@ export default function Matches() {
     }
   };
 
-  const handleContactMatch = async (matchId: number, teacherName: string, teacherId: string, skillName: string) => {
-    if (contactingId) return; // Prevent duplicate clicks
-    
-    setContactingId(matchId);
+  const handleRequestExchange = async (match: AsyncMatch) => {
+    if (requestingId) return; // Prevent duplicate clicks
+
+    if (!user) {
+      toastError('Please log in to request an exchange');
+      return;
+    }
+
+    if (!match.skillId) {
+      toastError(`${match.teacherName} hasn't published a skill card for ${match.skillName} yet, so an exchange can't be booked.`);
+      return;
+    }
+
+    const credits = match.creditsRequired ?? 0;
+    if (getAvailableCredits() < credits) {
+      toastError(`Insufficient credits! You need ${credits} credits but only have ${getAvailableCredits()}.`);
+      return;
+    }
+
+    setRequestingId(match.id);
     try {
-      const token = localStorage.getItem('token');
-      
-      // Update match status
-      const response = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:5000/api'}/matches/${matchId}/contact`, {
-        method: 'POST',
-        headers: { 'Authorization': `Bearer ${token}` }
-      });
-      
-      if (!response.ok) {
-        const errorData = await response.text();
-        throw new Error(`Failed to update match: ${errorData}`);
-      }
-      
-      // Create initial message to start conversation
-      console.log(`Creating message for teacher ${teacherId} about ${skillName}`);
-      const messageResponse = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:5000/api'}/messages`, {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          receiverId: teacherId,
-          content: `Hi! I'm interested in learning ${skillName}. I saw your profile and would love to connect about potential skill exchange opportunities.`
-        })
-      });
-      
-      if (!messageResponse.ok) {
-        const messageError = await messageResponse.text();
-        console.error('Message creation failed:', messageError);
-        setError(`Match contacted but message failed: ${messageError}. Please send a message manually.`);
-        // Still refresh to show contacted status
-        fetchAsyncMatches();
+      const firstName = match.teacherName.split(' ')[0];
+      const requestSuccess = await sendExchangeRequest(
+        match.skillId,
+        1,
+        `Hi ${firstName}! I would love to learn ${match.skillName} from you. I'm excited to exchange knowledge and skills with you!`
+      );
+
+      if (!requestSuccess) {
+        toastError('Failed to send exchange request. Please try again.');
         return;
       }
-      
-      const messageData = await messageResponse.json();
-      console.log('Message created successfully:', messageData);
-      
-      // Show success message
-      setSuccessMessage(`Successfully contacted ${teacherName}! Check your Messages to continue the conversation.`);
-      setTimeout(() => setSuccessMessage(''), 5000);
-      
-      // Refresh matches
+
+      // Mark the match as contacted so it moves to the "Contacted Teachers" section
+      try {
+        const token = localStorage.getItem('token');
+        await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:5000/api'}/matches/${match.id}/contact`, {
+          method: 'POST',
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+      } catch (err) {
+        console.warn('Failed to update match status after exchange request:', err);
+      }
+
+      success(`Exchange request sent to ${match.teacherName}!`);
       fetchAsyncMatches();
     } catch (err: any) {
-      console.error('Contact match error:', err);
-      setError(err.message || 'Failed to contact teacher. Please try again.');
-      setTimeout(() => setError(''), 5000);
+      console.error('Error sending exchange request:', err);
+      toastError(err.message || 'Could not send request. Please try again.');
     } finally {
-      setContactingId(null);
+      setRequestingId(null);
     }
   };
 
@@ -447,14 +446,15 @@ export default function Matches() {
                     </div>
                     
                     <button
-                      onClick={() => handleContactMatch(match.id, match.teacherName, match.teacherId, match.skillName)}
-                      disabled={contactingId === match.id}
+                      onClick={() => handleRequestExchange(match)}
+                      disabled={requestingId === match.id || !match.skillId}
+                      title={!match.skillId ? 'Instructor has not published a skill card for this skill yet' : ''}
                       className="ml-4 px-4 py-2 rounded-lg text-white transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                       style={{ background: 'var(--green-800)' }}
                       onMouseEnter={e => (e.currentTarget.style.background = 'var(--green-700)')}
                       onMouseLeave={e => (e.currentTarget.style.background = 'var(--green-800)')}
                     >
-                      {contactingId === match.id ? 'Contacting...' : 'Contact'}
+                      {requestingId === match.id ? 'Requesting...' : 'Request Exchange'}
                     </button>
                   </div>
                 </div>
@@ -743,7 +743,7 @@ export default function Matches() {
         )}
       </div>
     </div>
-
+    <ToastContainer toasts={toasts} onRemove={removeToast} />
     </>
   );
 }

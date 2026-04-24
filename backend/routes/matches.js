@@ -28,6 +28,9 @@ router.get('/suggestions', authenticateToken, async (req, res) => {
   const offset = Number(req.query.offset || 0);
 
   try {
+    // Resolve the underlying published skill card (most recent active match) so the frontend
+    // can fire a real /exchanges/request via skillId. Matches without a backing skill card
+    // are filtered out — they cannot be booked.
     const sql = `
       SELECT 
         sm.id,
@@ -41,9 +44,20 @@ router.get('/suggestions', authenticateToken, async (req, res) => {
         u.email,
         u.total_rating,
         u.rating_count,
-        u.profile_picture_url
+        u.profile_picture_url,
+        s.skill_id,
+        s.credits_required
       FROM skill_matches sm
       JOIN users u ON u.id = sm.teacher_id
+      LEFT JOIN LATERAL (
+        SELECT id AS skill_id, credits_required
+        FROM skills
+        WHERE user_id = sm.teacher_id
+          AND is_active = TRUE
+          AND TRIM(LOWER(title)) LIKE '%' || TRIM(LOWER(sm.skill_name)) || '%'
+        ORDER BY created_at DESC
+        LIMIT 1
+      ) s ON TRUE
       WHERE sm.learner_id = $1
         AND sm.status = $2
         AND sm.match_score >= $3
@@ -61,6 +75,8 @@ router.get('/suggestions', authenticateToken, async (req, res) => {
       rating: Number(row.total_rating || 0),
       ratingCount: Number(row.rating_count || 0),
       skillName: row.skill_name,
+      skillId: row.skill_id || null,
+      creditsRequired: row.credits_required != null ? Number(row.credits_required) : null,
       matchScore: Number(row.match_score),
       status: row.status,
       createdAt: row.created_at
