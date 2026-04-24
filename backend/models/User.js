@@ -408,6 +408,8 @@ class User {
   }
 
   // Update user's skills possessing
+  // Also invalidates stale teacher-side matches and deactivates orphaned skill cards
+  // for skills that were removed from the user's possessing list.
   static async updateSkillsPossessing(userId, skills) {
     const result = await query(
       `UPDATE users
@@ -417,10 +419,44 @@ class User {
        RETURNING skills_possessing`,
       [userId, skills]
     );
+
+    // Expire suggested/contacted matches where this user is listed as teacher
+    // for a skill they no longer possess.
+    await query(
+      `UPDATE skill_matches
+       SET status = 'expired', updated_at = CURRENT_TIMESTAMP
+       WHERE teacher_id = $1
+         AND status IN ('suggested', 'contacted')
+         AND NOT (LOWER(TRIM(skill_name)) = ANY (
+           SELECT LOWER(TRIM(s)) FROM unnest($2::text[]) s
+         ))`,
+      [userId, skills]
+    );
+
+    // Deactivate any skills-table entries whose title is no longer in possessing
+    // so the matching graph stops surfacing them.
+    await query(
+      `UPDATE skills
+       SET is_active = false, updated_at = CURRENT_TIMESTAMP
+       WHERE user_id = $1
+         AND is_active = true
+         AND NOT (LOWER(TRIM(title)) = ANY (
+           SELECT LOWER(TRIM(s)) FROM unnest($2::text[]) s
+         ))`,
+      [userId, skills]
+    );
+
+    // Invalidate cached skill graph so cycle detection uses fresh data
+    try {
+      const GraphService = require('../services/GraphService');
+      GraphService.clearCache();
+    } catch (_) { /* non-fatal */ }
+
     return result.rows[0]?.skills_possessing || [];
   }
 
   // Update user's skills interested in
+  // Also invalidates stale learner-side matches for interests that were removed.
   static async updateSkillsInterestedIn(userId, skills) {
     const result = await query(
       `UPDATE users
@@ -430,6 +466,26 @@ class User {
        RETURNING skills_interested_in`,
       [userId, skills]
     );
+
+    // Expire suggested/contacted matches where this user is the learner
+    // for a skill they're no longer interested in.
+    await query(
+      `UPDATE skill_matches
+       SET status = 'expired', updated_at = CURRENT_TIMESTAMP
+       WHERE learner_id = $1
+         AND status IN ('suggested', 'contacted')
+         AND NOT (LOWER(TRIM(skill_name)) = ANY (
+           SELECT LOWER(TRIM(s)) FROM unnest($2::text[]) s
+         ))`,
+      [userId, skills]
+    );
+
+    // Invalidate cached skill graph so cycle detection uses fresh data
+    try {
+      const GraphService = require('../services/GraphService');
+      GraphService.clearCache();
+    } catch (_) { /* non-fatal */ }
+
     return result.rows[0]?.skills_interested_in || [];
   }
 
