@@ -31,6 +31,14 @@ router.get('/suggestions', authenticateToken, async (req, res) => {
     // Resolve the underlying published skill card (most recent active match) so the frontend
     // can fire a real /exchanges/request via skillId. Matches without a backing skill card
     // are filtered out — they cannot be booked.
+    //
+    // For status='suggested' we also surface 'contacted' matches that have no active
+    // exchange_request behind them. This recovers two classes of zombie rows:
+    //   (a) legacy matches contacted via the old chat-only button (no request was ever created)
+    //   (b) matches whose request was rejected / cancelled / expired
+    // Matches with a live pending or accepted request stay hidden, since the user is already
+    // tracking those under /requests.
+    const showZombies = status === 'suggested';
     const sql = `
       SELECT 
         sm.id,
@@ -59,12 +67,26 @@ router.get('/suggestions', authenticateToken, async (req, res) => {
         LIMIT 1
       ) s ON TRUE
       WHERE sm.learner_id = $1
-        AND sm.status = $2
         AND sm.match_score >= $3
+        AND (
+          sm.status = $2
+          OR (
+            $6::boolean = TRUE
+            AND sm.status = 'contacted'
+            AND s.skill_id IS NOT NULL
+            AND NOT EXISTS (
+              SELECT 1 FROM exchange_requests er
+              WHERE er.requester_id = sm.learner_id
+                AND er.instructor_id = sm.teacher_id
+                AND er.skill_id = s.skill_id
+                AND er.status IN ('pending', 'accepted')
+            )
+          )
+        )
       ORDER BY sm.match_score DESC, sm.created_at DESC
       LIMIT $4 OFFSET $5
     `;
-    const result = await query(sql, [userId, status, minScore, limit, offset]);
+    const result = await query(sql, [userId, status, minScore, limit, offset, showZombies]);
     
     const suggestions = result.rows.map(row => ({
       id: row.id,
