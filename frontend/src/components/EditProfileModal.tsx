@@ -344,7 +344,21 @@ export const EditProfileModal: React.FC<EditProfileModalProps> = ({ isOpen, onCl
               <Award className="w-4 h-4 inline mr-2" />
               Skills Possessing (Skills you can offer/teach)
             </label>
-            
+
+            {/* Info banner: this field is profile-display only; matching uses skill cards */}
+            <div
+              className="mb-3 px-4 py-3 rounded-xl text-sm flex gap-3 items-start"
+              style={{ background: 'var(--green-50)', border: '1px solid var(--green-200)', color: 'var(--gray-700)' }}
+            >
+              <span style={{ color: 'var(--green-800)', fontSize: '1.1rem', lineHeight: 1 }}>i</span>
+              <div>
+                <strong style={{ color: 'var(--green-800)' }}>This field is for display only.</strong>
+                {' '}It appears on your public profile so learners can see at a glance what you teach.
+                Matching itself runs on your <strong>published skill cards</strong>, so make sure the skills you list here
+                reflect the cards you've actually published — otherwise your profile will look inconsistent to visitors.
+              </div>
+            </div>
+
             {/* Add new skill possessing */}
             <div className="flex gap-2 mb-3">
               <input
