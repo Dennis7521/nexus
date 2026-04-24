@@ -84,24 +84,21 @@ app.get('/uploads/transcripts/:filename', authenticateToken, async (req, res) =>
       return res.status(400).json({ message: 'Invalid filename format' });
     }
     
-    // Check if user is requesting their own transcript or is an admin
+    // Any authenticated user can view a transcript that belongs to some
+    // user on the platform (instructors' transcripts are used to verify
+    // skills publicly to other learners). We just confirm the requested
+    // filename actually corresponds to a user's stored transcript.
+    const expectedPath = `/uploads/transcripts/${filename}`;
     const isAdmin = req.user.role === 'admin';
-    
+
     if (!isAdmin) {
-      // Get user's transcript URL from database
-      const userResult = await query(
-        'SELECT transcript_url FROM users WHERE id = $1',
-        [userId]
+      const ownerResult = await query(
+        'SELECT id FROM users WHERE transcript_url = $1 LIMIT 1',
+        [expectedPath]
       );
-      
-      if (userResult.rows.length === 0 || !userResult.rows[0].transcript_url) {
-        return res.status(403).json({ message: 'No transcript found for user' });
-      }
-      
-      // Check if requested filename matches user's transcript
-      const expectedPath = `/uploads/transcripts/${filename}`;
-      if (userResult.rows[0].transcript_url !== expectedPath) {
-        return res.status(403).json({ message: 'Access denied' });
+
+      if (ownerResult.rows.length === 0) {
+        return res.status(404).json({ message: 'Transcript not found' });
       }
     }
     
