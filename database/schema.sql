@@ -239,6 +239,7 @@ CREATE TABLE sync_exchange_sessions (
     actual_started_at TIMESTAMP WITH TIME ZONE,
     actual_ended_at TIMESTAMP WITH TIME ZONE,
     actual_duration_minutes INTEGER,
+    meeting_ended BOOLEAN NOT NULL DEFAULT FALSE,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     completed_at TIMESTAMP,

@@ -7,6 +7,7 @@ const cookieParser = require('cookie-parser');
 const path = require('path');
 const fs = require('fs');
 const { pool, query } = require('./config/database');
+const { runStartupMigrations } = require('./config/migrations');
 const { startScheduledJobs } = require('./jobs/matchingJobs');
 const { authenticateToken } = require('./middleware/auth');
 require('dotenv').config();
@@ -186,9 +187,12 @@ app.use((req, res) => {
   res.status(404).json({ message: 'Route not found' });
 });
 
-app.listen(PORT, () => {
+app.listen(PORT, async () => {
   console.log(`NEXUS API server running on port ${PORT}`);
   console.log(`Health check: http://localhost:${PORT}/api/health`);
+
+  // Apply idempotent schema migrations before background jobs run
+  await runStartupMigrations();
 
   // Start background matching cron jobs
   startScheduledJobs();
