@@ -7,9 +7,11 @@ const CACHE_TTL = 5 * 60 * 1000; // 5 minutes
 
 // Minimal graph-like utilities for matching
 const GraphService = {
-  // Find instructors offering a given skill via 'skills' table and users.skills_possessing array
+  // Find instructors offering a given skill — only via published skill cards in the 'skills' table.
+  // Matches against users.skills_possessing have been intentionally removed: those entries are not
+  // real offerings (no credits, duration, or skill_id) and contacting them produces "ghost" matches
+  // that cannot be booked. Instructors must publish a skill card to be matchable.
   findTeachersForSkill: async (skillName, excludeUserId, limit = 25) => {
-    // Source A: explicit skills offerings
     const fromSkillsSql = `
       SELECT 
         u.id AS user_id,
@@ -32,7 +34,7 @@ const GraphService = {
       LIMIT $3
     `;
     const aRes = await query(fromSkillsSql, [`%${skillName}%`, excludeUserId, limit]);
-    const a = aRes.rows.map((r) => {
+    const rows = aRes.rows.map((r) => {
       const { hours, period } = parseDuration(r.duration_per_week);
       return {
         ...r,
@@ -41,42 +43,10 @@ const GraphService = {
       };
     });
 
-    // Source B: users.skills_possessing array (case-insensitive exact match)
-    const fromUserArraySql = `
-      SELECT 
-        u.id AS user_id,
-        u.first_name,
-        u.last_name,
-        u.email,
-        u.total_rating,
-        u.rating_count,
-        NULL::uuid AS skill_id,
-        $1::text AS skill_title,
-        0::int AS credits_required,
-        NULL::int AS time_commitment_hours,
-        NULL::text AS time_commitment_period
-      FROM users u
-      WHERE u.id <> $2
-        AND EXISTS (
-          SELECT 1 FROM unnest(u.skills_possessing) s
-          WHERE TRIM(LOWER(s)) = TRIM(LOWER($1)) OR LOWER(s) LIKE LOWER('%' || $1 || '%')
-        )
-      LIMIT $3
-    `;
-    const bRes = await query(fromUserArraySql, [skillName, excludeUserId, limit]);
-    const b = bRes.rows;
-
-    // Merge and deduplicate by user_id, prefer entries with a concrete skills row (skill_id not null)
+    // Deduplicate by user_id (a teacher may have multiple matching skill cards — keep the most recent)
     const map = new Map();
-    const prefer = (row) => {
-      const curr = map.get(row.user_id);
-      if (!curr) return true;
-      if (curr.skill_id && !row.skill_id) return false; // keep concrete over array-based
-      if (!curr.skill_id && row.skill_id) return true;
-      return false;
-    };
-    [...a, ...b].forEach((row) => {
-      if (prefer(row)) {
+    rows.forEach((row) => {
+      if (!map.has(row.user_id)) {
         map.set(row.user_id, row);
       }
     });
