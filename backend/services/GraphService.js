@@ -31,6 +31,12 @@ const GraphService = {
         s.credits_required,
         s.duration_per_week,
         s.created_at
+        ,CASE
+          WHEN TRIM(LOWER(s.title)) = TRIM(LOWER($1)) THEN 'exact'
+          WHEN TRIM(LOWER(s.title)) LIKE '%' || TRIM(LOWER($1)) || '%'
+            OR TRIM(LOWER($1)) LIKE '%' || TRIM(LOWER(s.title)) || '%' THEN 'substring'
+          ELSE 'token'
+        END AS match_quality
       FROM skills s
       JOIN users u ON u.id = s.user_id
       WHERE s.is_active = TRUE
@@ -194,29 +200,39 @@ const GraphService = {
     cacheTimestamp = null;
   },
 
-  // Enhanced scoring: Wilson score + availability + location
+  // Enhanced scoring: Bayesian rating + match quality + availability/location placeholders.
+  // Total budget = 100. New reviewers can no longer outrank teachers with several strong
+  // ratings (the old Wilson lower-bound was non-monotonic at low n), and a learner whose
+  // interest exactly matches a card title now ranks above one matched only via a shared
+  // token. Availability and location are still hard-coded placeholders pending real signals.
   scoreCandidate: (candidate) => {
     const rating = Number(candidate.total_rating || 0);
     const ratingCount = Number(candidate.rating_count || 0);
-    
-    // Wilson score interval (lower bound) for rating confidence
-    // https://www.evanmiller.org/how-not-to-sort-by-average-rating.html
-    const wilsonScore = calculateWilsonScore(rating, ratingCount);
-    const ratingScore = wilsonScore * 50; // up to 50 points
-    
-    // Recency bonus (newer skills/users get slight boost)
+
+    // Bayesian / Laplace-smoothed rating: blend the candidate's average rating with a
+    // prior of 3.0/5 over 3 phantom reviews. Monotonic in count, never outranks a
+    // genuinely well-reviewed teacher, and avoids the Wilson dip for n=1.
+    const PRIOR_RATING = 3.0;
+    const PRIOR_WEIGHT = 3;
+    const adjusted = (rating * ratingCount + PRIOR_RATING * PRIOR_WEIGHT) / (ratingCount + PRIOR_WEIGHT);
+    const ratingScore = (adjusted / 5) * 40; // up to 40 points
+
+    // Match quality: how well the learner's interest aligned with the card title.
+    // Falls back to substring if the column is missing (older callers).
+    const matchQuality = candidate.match_quality || 'substring';
+    const matchScore = matchQuality === 'exact' ? 25 : matchQuality === 'substring' ? 15 : 8;
+
+    // Recency bonus: card has any created_at
     const recencyBonus = candidate.created_at ? 5 : 0;
-    
-    // Availability overlap (placeholder - would check schedule compatibility)
-    const availabilityScore = 20; // default assume available
-    
-    // Location/proximity score (placeholder - would use geo distance)
-    const locationScore = 15; // default neutral
-    
-    // Activity score (users with more exchanges get slight boost)
-    const activityBonus = Math.min(ratingCount * 2, 10);
-    
-    const total = ratingScore + recencyBonus + availabilityScore + locationScore + activityBonus;
+
+    // Availability / location placeholders (real signals pending)
+    const availabilityScore = 15;
+    const locationScore = 10;
+
+    // Activity bonus: small bump for teachers who have actually been reviewed before
+    const activityBonus = Math.min(ratingCount, 5);
+
+    const total = ratingScore + matchScore + recencyBonus + availabilityScore + locationScore + activityBonus;
     return Math.max(0, Math.min(100, Math.round(total)));
   },
 };
@@ -300,26 +316,5 @@ function normalizeCycle(cycle) {
   return normalized;
 }
 
-// Wilson score interval (lower bound) for rating confidence
-// Gives conservative estimate that accounts for sample size
-function calculateWilsonScore(rating, count) {
-  // No reviews: assume neutral 3.5/5 rating with low confidence
-  if (count === 0) return 0.7; // 70% baseline for unrated users
-  
-  // Convert 5-star rating to proportion of positive ratings
-  const p = rating / 5.0; // 0..1
-  const n = count;
-  
-  // z-score for 95% confidence interval
-  const z = 1.96;
-  
-  // Wilson score formula
-  const denominator = 1 + (z * z) / n;
-  const p_hat = p + (z * z) / (2 * n);
-  const margin = z * Math.sqrt((p * (1 - p) + (z * z) / (4 * n)) / n);
-  
-  const lowerBound = (p_hat - margin) / denominator;
-  return Math.max(0, Math.min(1, lowerBound));
-}
 
 module.exports = GraphService;
