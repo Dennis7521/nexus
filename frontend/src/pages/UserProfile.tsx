@@ -273,10 +273,27 @@ export const UserProfile: React.FC = () => {
                 {userData.transcriptUrl && (
                   <div className="mb-6">
                     <h4 className="font-semibold mb-3" style={{ color: 'var(--gray-900)' }}>Academic Transcript</h4>
-                    <a
-                      href={userData.transcriptUrl}
-                      target="_blank"
-                      rel="noopener noreferrer"
+                    <button
+                      type="button"
+                      onClick={async () => {
+                        try {
+                          const token = localStorage.getItem('token');
+                          const res = await fetch(userData.transcriptUrl!, {
+                            headers: { 'Authorization': `Bearer ${token}` }
+                          });
+                          if (!res.ok) {
+                            alert('Unable to load transcript');
+                            return;
+                          }
+                          const blob = await res.blob();
+                          const blobUrl = URL.createObjectURL(blob);
+                          window.open(blobUrl, '_blank', 'noopener,noreferrer');
+                          setTimeout(() => URL.revokeObjectURL(blobUrl), 60_000);
+                        } catch (err) {
+                          console.error('Error opening transcript:', err);
+                          alert('Failed to open transcript');
+                        }
+                      }}
                       className="inline-flex items-center gap-2 px-4 py-3 rounded-lg transition-all"
                       style={{ 
                         background: 'var(--green-800)', 
@@ -293,7 +310,7 @@ export const UserProfile: React.FC = () => {
                       <FileText className="w-5 h-5" />
                       <span className="font-medium">View Academic Transcript</span>
                       <ExternalLink className="w-4 h-4" />
-                    </a>
+                    </button>
                     <p className="text-sm mt-2" style={{ color: 'var(--gray-500)' }}>
                       Click to view this instructor's verified academic transcript
                     </p>

@@ -471,14 +471,31 @@ export const EditProfileModal: React.FC<EditProfileModalProps> = ({ isOpen, onCl
                   <File className="w-5 h-5 text-green-600" />
                   <div className="flex-1">
                     <p className="text-sm font-medium text-green-800">Transcript uploaded</p>
-                    <a 
-                      href={transcriptUrl} 
-                      target="_blank" 
-                      rel="noopener noreferrer"
+                    <button
+                      type="button"
+                      onClick={async () => {
+                        try {
+                          const token = localStorage.getItem('token');
+                          const res = await fetch(transcriptUrl, {
+                            headers: { 'Authorization': `Bearer ${token}` }
+                          });
+                          if (!res.ok) {
+                            alert('Unable to load transcript');
+                            return;
+                          }
+                          const blob = await res.blob();
+                          const blobUrl = URL.createObjectURL(blob);
+                          window.open(blobUrl, '_blank', 'noopener,noreferrer');
+                          setTimeout(() => URL.revokeObjectURL(blobUrl), 60_000);
+                        } catch (err) {
+                          console.error('Error opening transcript:', err);
+                          alert('Failed to open transcript');
+                        }
+                      }}
                       className="text-xs text-green-600 hover:underline"
                     >
                       View transcript
-                    </a>
+                    </button>
                   </div>
                   <button
                     type="button"
