@@ -97,7 +97,7 @@ Final Year Project/
 ### Matching Algorithm
 - **Asynchronous Matching**: Graph-based scoring to find one-to-one teacher matches for a requested skill, restricted to instructors with a published skill card (no "ghost" matches against profile keywords)
 - **Fuzzy Skill Resolution**: Learner interests match skill cards via substring overlap in either direction OR shared meaningful word tokens (length ≥ 4), e.g. "business skills" matches "Business plan writing"
-- **Synchronous Cycle Detection**: Detects multi-party exchange cycles (3–5 users) from the skill graph
+- **Synchronous Cycle Detection**: Detects multi-party exchange cycles (3–5 users) from a directed graph whose **offer** edges are sourced from published skill cards (`skills` table) and whose **want** edges come from `skills_interested_in`. Uses the same fuzzy resolution rules as async, so cycles can close across non-identical phrasings (e.g. interest "Python" → card "Python for Data Analysis")
 - **Score Composition (out of 100)**:
   - **Rating (55)** — Bayesian-smoothed average using a 3.0/5 prior over 3 phantom reviews, monotonic in review count so a teacher with several strong reviews always outranks an unrated peer
   - **Match Quality (35/22/12)** — exact title match, substring overlap, or single-token overlap respectively

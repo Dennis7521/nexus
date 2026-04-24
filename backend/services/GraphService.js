@@ -83,6 +83,15 @@ const GraphService = {
 
   // Build directed skill exchange graph
   // Returns adjacency list: { userId: [{ toUser, skill, wantSkill }] }
+  //
+  // Edges are sourced from published skill cards (skills table) as the offer side and the
+  // learner's skills_interested_in array as the want side. We deliberately do NOT use
+  // users.skills_possessing on the offer side: those entries have no credits, duration, or
+  // skill_id and cannot anchor a real session, mirroring the async fix.
+  //
+  // Matching is fuzzy in either direction (substring + shared word tokens of length >= 4)
+  // so e.g. an interest "Python" closes a cycle through a card titled "Python for Data
+  // Analysis", and "business skills" closes through "Business plan writing".
   buildSkillGraph: async (forceRefresh = false) => {
     // Return cached graph if still valid
     if (!forceRefresh && cachedGraph && Date.now() - cacheTimestamp < CACHE_TTL) {
@@ -92,21 +101,37 @@ const GraphService = {
     const { query } = require('../config/database');
     // Exclude users who are already in an active sync exchange (one-at-a-time constraint)
     const sql = `
-      SELECT 
+      SELECT DISTINCT
         u1.id AS from_user,
         u2.id AS to_user,
-        s1.skill AS offer_skill,
-        s2.skill AS want_skill
-      FROM users u1
+        s.title AS offer_skill,
+        s.title AS want_skill
+      FROM skills s
+      JOIN users u1 ON u1.id = s.user_id
       CROSS JOIN users u2
-      CROSS JOIN unnest(u1.skills_possessing) s1(skill)
       CROSS JOIN unnest(u2.skills_interested_in) s2(skill)
       WHERE u1.id <> u2.id
-        AND LOWER(TRIM(s1.skill)) = LOWER(TRIM(s2.skill))
+        AND s.is_active = TRUE
         AND u1.is_active = TRUE
         AND u2.is_active = TRUE
         AND u1.active_sync_exchange_id IS NULL
         AND u2.active_sync_exchange_id IS NULL
+        AND (
+          TRIM(LOWER(s.title)) LIKE '%' || TRIM(LOWER(s2.skill)) || '%'
+          OR TRIM(LOWER(s2.skill)) LIKE '%' || TRIM(LOWER(s.title)) || '%'
+          OR EXISTS (
+            SELECT 1
+            FROM regexp_split_to_table(LOWER(s.title), '[^a-z0-9]+') AS title_tok(tok)
+            WHERE LENGTH(title_tok.tok) >= 4
+              AND title_tok.tok = ANY (
+                ARRAY(
+                  SELECT tok
+                  FROM regexp_split_to_table(LOWER(s2.skill), '[^a-z0-9]+') AS interest_tok(tok)
+                  WHERE LENGTH(tok) >= 4
+                )
+              )
+          )
+        )
     `;
     const result = await query(sql, []);
     
@@ -168,24 +193,39 @@ const GraphService = {
     );
     if (userCheck.rows.length !== userIds.length) return false;
     
-    // Check each edge still exists using case-insensitive comparison
-    // (same as graph building, to handle skills stored with different casing)
+    // Check each edge still exists. Mirrors buildSkillGraph: the "from" user must still
+    // have an active skill card whose title equals the cycle's recorded offer (a teacher
+    // committed to that specific card), and the "to" user must still have an interest
+    // that matches it under the same fuzzy rules (substring or shared token >= 4).
     for (let i = 0; i < cycle.length; i++) {
       const from = cycle[i];
       const to = cycle[(i + 1) % cycle.length];
-      
+
       const edgeCheck = await query(
         `SELECT 1
-         FROM users u1, users u2
-         WHERE u1.id = $1 AND u2.id = $2
+         FROM skills s
+         JOIN users u2 ON u2.id = $2
+         WHERE s.user_id = $1
+           AND s.is_active = TRUE
+           AND TRIM(LOWER(s.title)) = TRIM(LOWER($3))
            AND EXISTS (
-             SELECT 1 FROM unnest(u1.skills_possessing) s
-             WHERE LOWER(TRIM(s)) = LOWER(TRIM($3))
+             SELECT 1 FROM unnest(u2.skills_interested_in) i(skill)
+             WHERE TRIM(LOWER(i.skill)) LIKE '%' || TRIM(LOWER(s.title)) || '%'
+                OR TRIM(LOWER(s.title)) LIKE '%' || TRIM(LOWER(i.skill)) || '%'
+                OR EXISTS (
+                  SELECT 1
+                  FROM regexp_split_to_table(LOWER(s.title), '[^a-z0-9]+') AS t1(tok)
+                  WHERE LENGTH(t1.tok) >= 4
+                    AND t1.tok = ANY (
+                      ARRAY(
+                        SELECT tok
+                        FROM regexp_split_to_table(LOWER(i.skill), '[^a-z0-9]+') AS t2(tok)
+                        WHERE LENGTH(tok) >= 4
+                      )
+                    )
+                )
            )
-           AND EXISTS (
-             SELECT 1 FROM unnest(u2.skills_interested_in) s
-             WHERE LOWER(TRIM(s)) = LOWER(TRIM($3))
-           )`,
+         LIMIT 1`,
         [from.userId, to.userId, from.skill]
       );
       if (edgeCheck.rows.length === 0) return false;
