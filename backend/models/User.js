@@ -270,31 +270,55 @@ class User {
     return result.rows;
   }
 
-  // Get user's exchange history
-  static async getExchangeHistory(userId, limit = 10, offset = 0) {
+  // Get user's exchange history (completed async + sync exchanges)
+  static async getExchangeHistory(userId, limit = 20, offset = 0) {
     const result = await query(
-      `SELECT 
-        er.id,
-        s.title as skill_title,
-        er.status,
-        er.total_credits,
-        er.created_at,
-        er.updated_at,
-        CASE 
-          WHEN er.requester_id = $1 THEN 'learner'
-          ELSE 'mentor'
-        END as role,
-        CASE 
-          WHEN er.requester_id = $1 THEN u2.first_name || ' ' || u2.last_name
-          ELSE u1.first_name || ' ' || u1.last_name
-        END as partner_name
-       FROM exchange_requests er
-       JOIN skills s ON er.skill_id = s.id
-       JOIN users u1 ON er.requester_id = u1.id
-       JOIN users u2 ON er.instructor_id = u2.id
-       WHERE (er.requester_id = $1 OR er.instructor_id = $1)
-       ORDER BY er.created_at DESC
-       LIMIT $2 OFFSET $3`,
+      `(
+        SELECT 
+          'async-' || er.id::text as id,
+          s.title as skill_title,
+          er.status,
+          er.total_credits,
+          COALESCE(er.updated_at, er.created_at) as created_at,
+          'async' as exchange_type,
+          CASE 
+            WHEN er.requester_id = $1 THEN 'learner'
+            ELSE 'mentor'
+          END as role,
+          CASE 
+            WHEN er.requester_id = $1 THEN u2.first_name || ' ' || u2.last_name
+            ELSE u1.first_name || ' ' || u1.last_name
+          END as partner_name
+        FROM exchange_requests er
+        JOIN skills s ON er.skill_id = s.id
+        JOIN users u1 ON er.requester_id = u1.id
+        JOIN users u2 ON er.instructor_id = u2.id
+        WHERE (er.requester_id = $1 OR er.instructor_id = $1)
+          AND er.status = 'completed'
+      )
+      UNION ALL
+      (
+        SELECT 
+          'sync-' || ec.id::text as id,
+          cp_self.skill_receiving as skill_title,
+          ec.status,
+          NULL::integer as total_credits,
+          COALESCE(ec.completed_at, ec.updated_at, ec.created_at) as created_at,
+          'sync' as exchange_type,
+          'learner' as role,
+          COALESCE((
+            SELECT string_agg(u.first_name || ' ' || u.last_name, ', ')
+            FROM cycle_participants cp2
+            JOIN users u ON cp2.user_id = u.id
+            WHERE cp2.cycle_id = ec.id AND cp2.user_id != $1
+          ), '') as partner_name
+        FROM exchange_cycles ec
+        JOIN cycle_participants cp_self
+          ON cp_self.cycle_id = ec.id AND cp_self.user_id = $1
+        WHERE ec.status = 'completed'
+      )
+      ORDER BY created_at DESC
+      LIMIT $2 OFFSET $3`,
       [userId, limit, offset]
     );
     return result.rows;

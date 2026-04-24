@@ -27,7 +27,7 @@ interface UserSkill {
 }
 
 interface ExchangeHistoryItem {
-  id: number;
+  id: string;
   skill_title: string;
   partner_name: string;
   exchange_type: string;
@@ -510,13 +510,7 @@ export const Profile: React.FC = () => {
                         <p className="text-black dark:text-neutral-white">with {exchange.partner_name}</p>
                       </div>
                       <div className="text-right">
-                        <span className={`px-3 py-1 rounded-full text-sm font-medium ${
-                          exchange.status === 'accepted' 
-                            ? 'bg-green-100 text-green-700' 
-                            : exchange.status === 'pending'
-                              ? 'bg-yellow-100 text-yellow-700'
-                              : 'bg-red-100 text-red-700'
-                        }`}>
+                        <span className="text-sm font-medium text-black dark:text-neutral-white capitalize">
                           {exchange.status}
                         </span>
                         <p className="text-sm text-black dark:text-neutral-white mt-1">
@@ -525,7 +519,7 @@ export const Profile: React.FC = () => {
                       </div>
                     </div>
                     <div className="text-sm text-black dark:text-neutral-white">
-                      <span className="font-medium">Type:</span> {exchange.exchange_type}
+                      <span className="font-medium">Type:</span> {exchange.exchange_type === 'sync' ? 'Sync (Multi-party Cycle)' : exchange.exchange_type === 'async' ? 'Async (One-to-One)' : exchange.exchange_type}
                     </div>
                   </div>
                 ))
