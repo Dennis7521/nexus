@@ -63,7 +63,6 @@ export default function Matches() {
   const { toasts, success, error: toastError, removeToast } = useToast();
   const [activeTab, setActiveTab] = useState<'async' | 'cycles' | 'completed'>('cycles');
   const [asyncMatches, setAsyncMatches] = useState<AsyncMatch[]>([]);
-  const [contactedMatches, setContactedMatches] = useState<AsyncMatch[]>([]);
   const [cycles, setCycles] = useState<Cycle[]>([]);
   const [completedExchanges, setCompletedExchanges] = useState<CompletedExchange[]>([]);
   const [loading, setLoading] = useState(true);
@@ -121,14 +120,6 @@ export default function Matches() {
       if (!suggestedResponse.ok) throw new Error('Failed to fetch matches');
       const suggestedData = await suggestedResponse.json();
       setAsyncMatches(suggestedData.suggestions || []);
-      
-      // Fetch contacted matches
-      const contactedResponse = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:5000/api'}/matches/suggestions?status=contacted&limit=20`, {
-        headers: { 'Authorization': `Bearer ${token}` }
-      });
-      if (!contactedResponse.ok) throw new Error('Failed to fetch contacted matches');
-      const contactedData = await contactedResponse.json();
-      setContactedMatches(contactedData.suggestions || []);
     } catch (err: any) {
       setError(err.message);
     } finally {
@@ -247,7 +238,7 @@ export default function Matches() {
         return;
       }
 
-      // Mark the match as contacted so it moves to the "Contacted Teachers" section
+      // Mark the match as contacted so it disappears from the One-on-One Matches list
       try {
         const token = localStorage.getItem('token');
         await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:5000/api'}/matches/${match.id}/contact`, {
@@ -459,54 +450,6 @@ export default function Matches() {
                   </div>
                 </div>
               ))
-            )}
-            
-            {/* Contacted Matches Section */}
-            {contactedMatches.length > 0 && (
-              <div className="mt-8">
-                <h2 className="text-xl font-semibold text-gray-900 mb-4">Contacted Teachers</h2>
-                <div className="space-y-4">
-                  {contactedMatches.map((match) => (
-                    <div key={match.id} className="bg-gray-50 rounded-lg border border-gray-200 p-6">
-                      <div className="flex items-start justify-between">
-                        <div className="flex-1">
-                          <div className="flex items-center gap-3">
-                            <div className="w-12 h-12 rounded-full bg-gray-400 flex items-center justify-center text-white font-semibold text-lg overflow-hidden">
-                              {match.teacherPicture ? (
-                                <img 
-                                  src={match.teacherPicture.startsWith('http') ? match.teacherPicture : match.teacherPicture} 
-                                  alt={match.teacherName}
-                                  className="w-full h-full object-cover"
-                                  crossOrigin="anonymous"
-                                />
-                              ) : (
-                                match.teacherName.charAt(0)
-                              )}
-                            </div>
-                            <div>
-                              <h3 className="text-lg font-semibold text-gray-900">{match.teacherName}</h3>
-                              <p className="text-sm text-gray-500">{match.teacherEmail}</p>
-                            </div>
-                          </div>
-                          
-                          <div className="mt-4 flex items-center gap-4">
-                            <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium border border-gray-300 text-gray-700">
-                              {match.skillName}
-                            </span>
-                            <div className="text-sm text-gray-600">
-                              Match: {match.matchScore}%
-                            </div>
-                          </div>
-                        </div>
-                        
-                        <span className="ml-4 px-3 py-1 rounded-full text-sm font-medium bg-blue-100 text-blue-800">
-                          Contacted
-                        </span>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
             )}
           </div>
         )}
