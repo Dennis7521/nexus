@@ -294,14 +294,7 @@ class User {
         JOIN users u1 ON er.requester_id = u1.id
         JOIN users u2 ON er.instructor_id = u2.id
         WHERE (er.requester_id = $1 OR er.instructor_id = $1)
-          AND (
-            er.status = 'completed'
-            OR EXISTS (
-              SELECT 1 FROM exchange_sessions es
-              WHERE es.exchange_request_id = er.id
-                AND es.status = 'completed'
-            )
-          )
+          AND er.status = 'completed'
       )
       UNION ALL
       (
