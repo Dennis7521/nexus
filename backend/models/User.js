@@ -294,7 +294,14 @@ class User {
         JOIN users u1 ON er.requester_id = u1.id
         JOIN users u2 ON er.instructor_id = u2.id
         WHERE (er.requester_id = $1 OR er.instructor_id = $1)
-          AND er.status = 'completed'
+          AND (
+            er.status = 'completed'
+            OR EXISTS (
+              SELECT 1 FROM exchange_sessions es
+              WHERE es.exchange_request_id = er.id
+                AND es.status = 'completed'
+            )
+          )
       )
       UNION ALL
       (
@@ -316,6 +323,11 @@ class User {
         JOIN cycle_participants cp_self
           ON cp_self.cycle_id = ec.id AND cp_self.user_id = $1
         WHERE ec.status = 'completed'
+           OR EXISTS (
+             SELECT 1 FROM cycle_reviews cr
+             WHERE cr.cycle_id = ec.id
+               AND (cr.reviewer_id = $1 OR cr.reviewee_id = $1)
+           )
       )
       ORDER BY created_at DESC
       LIMIT $2 OFFSET $3`,
