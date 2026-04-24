@@ -12,6 +12,12 @@ const GraphService = {
   // real offerings (no credits, duration, or skill_id) and contacting them produces "ghost" matches
   // that cannot be booked. Instructors must publish a skill card to be matchable.
   findTeachersForSkill: async (skillName, excludeUserId, limit = 25) => {
+    // Match a learner's interest against published skill cards using either:
+    //   1. substring overlap in either direction (e.g. "Python" <-> "Python for Data Analysis"), OR
+    //   2. shared meaningful word tokens of length >= 4 (e.g. "business skills" <-> "Business plan writing").
+    // The token branch fixes the case where the interest phrase is broader than any single
+    // skill-card title and pure LIKE fails. Length >= 4 filters out generic glue words
+    // ("and", "for", "the", "with") while still matching domain words like "data", "java", "math".
     const fromSkillsSql = `
       SELECT 
         u.id AS user_id,
@@ -28,12 +34,27 @@ const GraphService = {
       FROM skills s
       JOIN users u ON u.id = s.user_id
       WHERE s.is_active = TRUE
-        AND TRIM(LOWER(s.title)) LIKE TRIM(LOWER($1))
         AND u.id <> $2
+        AND (
+          TRIM(LOWER(s.title)) LIKE '%' || TRIM(LOWER($1)) || '%'
+          OR TRIM(LOWER($1)) LIKE '%' || TRIM(LOWER(s.title)) || '%'
+          OR EXISTS (
+            SELECT 1
+            FROM regexp_split_to_table(LOWER(s.title), '[^a-z0-9]+') AS title_tok(tok)
+            WHERE LENGTH(title_tok.tok) >= 4
+              AND title_tok.tok = ANY (
+                ARRAY(
+                  SELECT tok
+                  FROM regexp_split_to_table(LOWER($1), '[^a-z0-9]+') AS interest_tok(tok)
+                  WHERE LENGTH(tok) >= 4
+                )
+              )
+          )
+        )
       ORDER BY s.created_at DESC
       LIMIT $3
     `;
-    const aRes = await query(fromSkillsSql, [`%${skillName}%`, excludeUserId, limit]);
+    const aRes = await query(fromSkillsSql, [skillName, excludeUserId, limit]);
     const rows = aRes.rows.map((r) => {
       const { hours, period } = parseDuration(r.duration_per_week);
       return {
