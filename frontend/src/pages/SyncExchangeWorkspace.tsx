@@ -111,11 +111,24 @@ export default function SyncExchangeWorkspace() {
     fetchWorkspace();
   }, [cycleId]);
 
+  // Has the current user's learning pair completed all required sessions?
+  const myLearningPairCompleted = (() => {
+    if (!cycle || participants.length === 0) return false;
+    const n = participants.length;
+    const myPos = cycle.my_position;
+    const teacherPos = ((myPos - 1) % n + n) % n;
+    const required = Number((cycle.pair_session_counts || {})[String(teacherPos)] || 0);
+    if (required <= 0) return false;
+    const completed = sessions.filter(s => s.skill_pair_index === teacherPos && s.status === 'completed').length;
+    return completed >= required;
+  })();
+
   useEffect(() => {
-    if (cycle?.status === 'completed' && cycleId && !reviewLoaded) {
+    const ready = cycle?.status === 'completed' || myLearningPairCompleted;
+    if (ready && cycleId && !reviewLoaded) {
       fetchMyReview();
     }
-  }, [cycle?.status, cycleId, reviewLoaded]);
+  }, [cycle?.status, cycleId, reviewLoaded, myLearningPairCompleted]);
 
   const fetchMyReview = async () => {
     try {
@@ -433,8 +446,8 @@ export default function SyncExchangeWorkspace() {
           </div>
         )}
 
-        {/* Rate Your Instructor — shown when cycle is completed */}
-        {isCompleted && reviewLoaded && (() => {
+        {/* Rate Your Instructor — shown when learner's pair (or whole cycle) is complete */}
+        {(isCompleted || myLearningPairCompleted) && reviewLoaded && (() => {
           const n = participants.length;
           if (n === 0) return null;
           const myPos = cycle.my_position;

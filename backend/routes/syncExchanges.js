@@ -930,18 +930,20 @@ router.post('/:cycleId/review', authenticateToken, async (req, res) => {
     try {
       await client.query('BEGIN');
 
-      // Verify cycle is completed and reviewer is a participant
+      // Reviewer must be a participant; cycle does NOT need to be fully completed —
+      // a learner can rate their instructor as soon as their own learning-pair
+      // sessions are all completed.
       const cycleCheck = await client.query(
         `SELECT ec.*, cp.position_in_cycle, cp.skill_offering as my_teach_skill, cp.skill_receiving as my_learn_skill
          FROM exchange_cycles ec
          JOIN cycle_participants cp ON cp.cycle_id = ec.id AND cp.user_id = $1
-         WHERE ec.id = $2 AND ec.status = 'completed'`,
+         WHERE ec.id = $2`,
         [reviewerId, cycleId]
       );
 
       if (cycleCheck.rows.length === 0) {
         await client.query('ROLLBACK');
-        return res.status(404).json({ message: 'Completed cycle not found or access denied' });
+        return res.status(404).json({ message: 'Cycle not found or access denied' });
       }
 
       const cycle = cycleCheck.rows[0];
@@ -952,6 +954,30 @@ router.post('/:cycleId/review', authenticateToken, async (req, res) => {
       const teacherPosition = myPosition === 0 
         ? cycle.cycle_length - 1 
         : myPosition - 1;
+
+      // Verify the learner's pair (skill_pair_index = teacherPosition) has
+      // completed its required number of sessions, OR the whole cycle is done.
+      if (cycle.status !== 'completed') {
+        const pairCounts = cycle.pair_session_counts || {};
+        const required = Number(pairCounts[String(teacherPosition)] || 0);
+        if (required <= 0) {
+          await client.query('ROLLBACK');
+          return res.status(400).json({ message: 'Your instructor has not set the session count yet.' });
+        }
+        const pairCompletedRes = await client.query(
+          `SELECT COUNT(*)::int AS cnt
+           FROM sync_exchange_sessions
+           WHERE cycle_id = $1 AND skill_pair_index = $2 AND status = 'completed'`,
+          [cycleId, teacherPosition]
+        );
+        const completedForPair = pairCompletedRes.rows[0]?.cnt || 0;
+        if (completedForPair < required) {
+          await client.query('ROLLBACK');
+          return res.status(400).json({
+            message: `You can rate your instructor once all ${required} sessions are completed (${completedForPair}/${required} done).`
+          });
+        }
+      }
 
       const teacherResult = await client.query(
         `SELECT cp.user_id, cp.skill_offering
