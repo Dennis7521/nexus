@@ -208,7 +208,9 @@ class User {
           +
           -- Sync cycle counts as a completed exchange for this user when:
           --   (a) the whole cycle is completed, OR
-          --   (b) the user has rated their instructor (i.e. their learning
+          --   (b) the user has rated their instructor (their learning pair
+          --       finished all required sessions), OR
+          --   (c) the user has been rated as an instructor (their teaching
           --       pair finished all required sessions).
           (SELECT COUNT(DISTINCT cycle_id) FROM (
              SELECT ec.id AS cycle_id
@@ -217,6 +219,8 @@ class User {
              WHERE cp.user_id = $1 AND ec.status = 'completed'
              UNION
              SELECT cycle_id FROM cycle_reviews WHERE reviewer_id = $1
+             UNION
+             SELECT cycle_id FROM cycle_reviews WHERE reviewee_id = $1
           ) sync_done)
         ) as exchanges_completed
        FROM users u
