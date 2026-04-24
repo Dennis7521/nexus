@@ -99,11 +99,11 @@ Final Year Project/
 - **Fuzzy Skill Resolution**: Learner interests match skill cards via substring overlap in either direction OR shared meaningful word tokens (length ≥ 4), e.g. "business skills" matches "Business plan writing"
 - **Synchronous Cycle Detection**: Detects multi-party exchange cycles (3–5 users) from the skill graph
 - **Score Composition (out of 100)**:
-  - **Rating (40)** — Bayesian-smoothed average using a 3.0/5 prior over 3 phantom reviews, monotonic in review count so a teacher with several strong reviews always outranks an unrated peer
-  - **Match Quality (25/15/8)** — exact title match, substring overlap, or single-token overlap respectively
+  - **Rating (55)** — Bayesian-smoothed average using a 3.0/5 prior over 3 phantom reviews, monotonic in review count so a teacher with several strong reviews always outranks an unrated peer
+  - **Match Quality (35/22/12)** — exact title match, substring overlap, or single-token overlap respectively
   - **Recency (5)** — skill card has a `created_at`
-  - **Availability (15)** and **Location (10)** — placeholders pending schedule and geo data
   - **Activity (up to 5)** — small bump capped at 5 reviews
+  - *Availability and location were deliberately excluded*: NEXUS is a single-campus, fully virtual platform (UB students, Jitsi sessions), so neither signal is meaningful in this context.
 - **Zombie Recovery**: Matches whose request was rejected, cancelled, expired, or never created (legacy chat-only contacts) automatically reappear as bookable
 - **Scheduled Jobs**: Cron-based background jobs for match generation and cycle detection
 - **Duplicate Prevention**: Filters proposed cycles that duplicate already-completed participant sets

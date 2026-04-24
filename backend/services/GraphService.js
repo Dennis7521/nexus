@@ -200,11 +200,10 @@ const GraphService = {
     cacheTimestamp = null;
   },
 
-  // Enhanced scoring: Bayesian rating + match quality + availability/location placeholders.
-  // Total budget = 100. New reviewers can no longer outrank teachers with several strong
-  // ratings (the old Wilson lower-bound was non-monotonic at low n), and a learner whose
-  // interest exactly matches a card title now ranks above one matched only via a shared
-  // token. Availability and location are still hard-coded placeholders pending real signals.
+  // Scoring: Bayesian rating + match quality + recency + activity. Total budget = 100.
+  // Availability and location were removed: NEXUS is a single-campus, fully virtual platform
+  // (UB students, Jitsi sessions) so neither signal was meaningful, and keeping them as flat
+  // placeholders just inflated every score uniformly.
   scoreCandidate: (candidate) => {
     const rating = Number(candidate.total_rating || 0);
     const ratingCount = Number(candidate.rating_count || 0);
@@ -215,24 +214,20 @@ const GraphService = {
     const PRIOR_RATING = 3.0;
     const PRIOR_WEIGHT = 3;
     const adjusted = (rating * ratingCount + PRIOR_RATING * PRIOR_WEIGHT) / (ratingCount + PRIOR_WEIGHT);
-    const ratingScore = (adjusted / 5) * 40; // up to 40 points
+    const ratingScore = (adjusted / 5) * 55; // up to 55 points
 
     // Match quality: how well the learner's interest aligned with the card title.
     // Falls back to substring if the column is missing (older callers).
     const matchQuality = candidate.match_quality || 'substring';
-    const matchScore = matchQuality === 'exact' ? 25 : matchQuality === 'substring' ? 15 : 8;
+    const matchScore = matchQuality === 'exact' ? 35 : matchQuality === 'substring' ? 22 : 12;
 
     // Recency bonus: card has any created_at
     const recencyBonus = candidate.created_at ? 5 : 0;
 
-    // Availability / location placeholders (real signals pending)
-    const availabilityScore = 15;
-    const locationScore = 10;
-
     // Activity bonus: small bump for teachers who have actually been reviewed before
     const activityBonus = Math.min(ratingCount, 5);
 
-    const total = ratingScore + matchScore + recencyBonus + availabilityScore + locationScore + activityBonus;
+    const total = ratingScore + matchScore + recencyBonus + activityBonus;
     return Math.max(0, Math.min(100, Math.round(total)));
   },
 };
