@@ -206,9 +206,18 @@ class User {
           (SELECT COUNT(*) FROM exchange_requests
            WHERE (requester_id = $1 OR instructor_id = $1) AND status = 'completed')
           +
-          (SELECT COUNT(DISTINCT ec.id) FROM exchange_cycles ec
-           JOIN cycle_participants cp ON cp.cycle_id = ec.id
-           WHERE cp.user_id = $1 AND ec.status = 'completed')
+          -- Sync cycle counts as a completed exchange for this user when:
+          --   (a) the whole cycle is completed, OR
+          --   (b) the user has rated their instructor (i.e. their learning
+          --       pair finished all required sessions).
+          (SELECT COUNT(DISTINCT cycle_id) FROM (
+             SELECT ec.id AS cycle_id
+             FROM exchange_cycles ec
+             JOIN cycle_participants cp ON cp.cycle_id = ec.id
+             WHERE cp.user_id = $1 AND ec.status = 'completed'
+             UNION
+             SELECT cycle_id FROM cycle_reviews WHERE reviewer_id = $1
+          ) sync_done)
         ) as exchanges_completed
        FROM users u
        WHERE u.id = $1`,
