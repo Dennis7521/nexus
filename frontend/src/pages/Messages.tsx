@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Search, Send, MoreVertical, Flag, Paperclip, Smile, CheckCheck, Trash2, ExternalLink } from 'lucide-react';
+import { Search, Send, MoreVertical, Flag, Smile, CheckCheck, Trash2, ExternalLink } from 'lucide-react';
+import EmojiPicker, { type EmojiClickData } from 'emoji-picker-react';
 import { useAuth } from '../contexts/AuthContext';
 import axios from 'axios';
 import { markMessagesAsRead, markDirectMessagesAsRead } from '../utils/notificationHelpers';
@@ -47,6 +48,7 @@ export const Messages: React.FC = () => {
   const [reportDescription, setReportDescription] = useState('');
   const [reportedMemberId, setReportedMemberId] = useState('');
   const [isSubmittingReport, setIsSubmittingReport] = useState(false);
+  const [showEmojiPicker, setShowEmojiPicker] = useState(false);
 
   // Mark all messages as read when page loads
   useEffect(() => {
@@ -346,6 +348,19 @@ export const Messages: React.FC = () => {
       handleSendMessage();
     }
   };
+
+  // Close emoji picker when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      const target = event.target as HTMLElement;
+      if (showEmojiPicker && !target.closest('.emoji-picker-container')) {
+        setShowEmojiPicker(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [showEmojiPicker]);
 
   const handleReportUser = () => {
     setShowReportModal(true);
@@ -655,10 +670,7 @@ export const Messages: React.FC = () => {
                 ) : (
                   <div className="p-4 border-t border-secondary-200 dark:border-secondary-600 bg-secondary-50 dark:bg-secondary-700">
                     <div className="flex items-end gap-3">
-                      <button className="p-2 text-black dark:text-neutral-white hover:bg-secondary-100 dark:hover:bg-secondary-600 rounded-lg transition-colors">
-                        <Paperclip className="w-5 h-5" />
-                      </button>
-                      <div className="flex-1">
+                      <div className="flex-1 relative">
                         <textarea
                           className="w-full px-4 py-3 border border-secondary-200 dark:border-secondary-600 rounded-xl text-sm bg-neutral-white dark:bg-secondary-800 text-secondary-900 dark:text-neutral-white focus:outline-none focus:border-accent-500 focus:ring-2 focus:ring-accent-100 transition-all duration-200 resize-none"
                           placeholder="Type your message..."
@@ -668,9 +680,26 @@ export const Messages: React.FC = () => {
                           rows={1}
                         />
                       </div>
-                      <button className="p-2 text-black dark:text-neutral-white hover:bg-secondary-100 dark:hover:bg-secondary-600 rounded-lg transition-colors">
-                        <Smile className="w-5 h-5" />
-                      </button>
+                      <div className="relative emoji-picker-container">
+                        <button
+                          onClick={() => setShowEmojiPicker(!showEmojiPicker)}
+                          className="p-2 text-black dark:text-neutral-white hover:bg-secondary-100 dark:hover:bg-secondary-600 rounded-lg transition-colors"
+                        >
+                          <Smile className="w-5 h-5" />
+                        </button>
+                        {showEmojiPicker && (
+                          <div className="absolute bottom-12 right-0 z-50">
+                            <EmojiPicker
+                              onEmojiClick={(emojiData: EmojiClickData) => {
+                                setNewMessage(prev => prev + emojiData.emoji);
+                                setShowEmojiPicker(false);
+                              }}
+                              width={300}
+                              height={400}
+                            />
+                          </div>
+                        )}
+                      </div>
                       <button
                         onClick={handleSendMessage}
                         disabled={!newMessage.trim()}
