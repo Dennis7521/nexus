@@ -70,8 +70,11 @@ app.use(express.urlencoded({ extended: true, limit: '1mb' }));
 // Cookie parser — required for httpOnly JWT cookie support
 app.use(cookieParser());
 
+// uploads base directory - use env var for Railway volumes, fallback to local
+const uploadsBaseDir = process.env.UPLOADS_DIR || path.join(__dirname, 'uploads');
+
 // Public profile pictures (low sensitivity) - no auth required
-app.use('/uploads/profile-pictures', express.static('uploads/profile-pictures'));
+app.use('/uploads/profile-pictures', express.static(path.join(uploadsBaseDir, 'profile-pictures')));
 
 // Secure file serving for transcripts (high sensitivity) - requires authentication
 app.get('/uploads/transcripts/:filename', authenticateToken, async (req, res) => {
@@ -103,7 +106,7 @@ app.get('/uploads/transcripts/:filename', authenticateToken, async (req, res) =>
     }
     
     // Serve the file
-    const filePath = path.join(__dirname, 'uploads', 'transcripts', filename);
+    const filePath = path.join(uploadsBaseDir, 'transcripts', filename);
     
     // Check file exists
     if (!fs.existsSync(filePath)) {

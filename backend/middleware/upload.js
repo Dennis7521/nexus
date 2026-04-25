@@ -13,9 +13,12 @@ if (process.env.CLOUDINARY_URL) {
   console.log('Warning: CLOUDINARY_URL not set, using local storage fallback');
 }
 
-// Ensure uploads directories exist (fallback for local development)
-const profilePicturesDir = path.join(__dirname, '../uploads/profile-pictures');
-const transcriptsDir = path.join(__dirname, '../uploads/transcripts');
+// uploads base directory - use env var for Railway volumes, fallback to local
+const uploadsBaseDir = process.env.UPLOADS_DIR || path.join(__dirname, '../uploads');
+
+// Ensure uploads directories exist
+const profilePicturesDir = path.join(uploadsBaseDir, 'profile-pictures');
+const transcriptsDir = path.join(uploadsBaseDir, 'transcripts');
 
 if (!fs.existsSync(profilePicturesDir)) {
   fs.mkdirSync(profilePicturesDir, { recursive: true });
