@@ -214,6 +214,7 @@ router.get('/conversations', authenticateToken, async (req, res) => {
            WHEN er.requester_id = $1 THEN u2.profile_picture_url
            ELSE u1.profile_picture_url
          END as partner_profile_picture,
+         er.status as exchange_status,
          er.created_at,
          er.message as initial_message
        FROM exchange_requests er

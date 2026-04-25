@@ -19,7 +19,9 @@ interface Message {
 interface Conversation {
   id: number;
   exchangeId: string | null;
+  exchangeStatus?: string | null;
   cycleId?: string | null;
+  cycleStatus?: string | null;
   isGroup?: boolean;
   groupMembers?: string[];
   groupMemberDetails?: { id: string; name: string }[];
@@ -84,7 +86,9 @@ export const Messages: React.FC = () => {
             return {
               id: index + 1,
               exchangeId: conv.exchange_id || null,
+              exchangeStatus: conv.exchange_status || null,
               cycleId: null,
+              cycleStatus: null,
               isGroup: false,
               partnerId: conv.partner_id,
               partnerName: conv.partner_name,
@@ -121,7 +125,9 @@ export const Messages: React.FC = () => {
             return {
               id: formattedConversations.length + index + 1,
               exchangeId: null,
+              exchangeStatus: null,
               cycleId: gc.cycle_id,
+              cycleStatus: gc.cycle_status || null,
               isGroup: true,
               groupMembers: memberNames,
               groupMemberDetails: memberDetails,
@@ -594,15 +600,21 @@ export const Messages: React.FC = () => {
                           <Flag className="w-5 h-5" />
                         </button>
                       )}
-                      <button 
-                        onClick={handleDeleteConversation}
-                        className="p-2 rounded-lg transition-colors"
-                        style={{ color: 'var(--danger-500)' }}
-                        title="Delete conversation"
-                        onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(239, 68, 68, 0.1)'}
-                        onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}>
-                        <Trash2 className="w-5 h-5" />
-                      </button>
+                      {/* Hide delete button for active exchanges and active group chats */}
+                      {!(
+                        (currentConversation.exchangeId && currentConversation.exchangeStatus === 'accepted') ||
+                        (currentConversation.isGroup && currentConversation.cycleStatus === 'active')
+                      ) && (
+                        <button 
+                          onClick={handleDeleteConversation}
+                          className="p-2 rounded-lg transition-colors"
+                          style={{ color: 'var(--danger-500)' }}
+                          title="Delete conversation"
+                          onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(239, 68, 68, 0.1)'}
+                          onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}>
+                          <Trash2 className="w-5 h-5" />
+                        </button>
+                      )}
                       <button className="p-2 rounded-lg transition-colors" style={{ color: 'var(--white)' }}
                         onMouseEnter={(e) => e.currentTarget.style.background = 'var(--green-700)'}
                         onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}>
