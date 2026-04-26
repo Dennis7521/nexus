@@ -15,8 +15,6 @@ router.get('/', async (req, res) => {
         u.last_name,
         u.student_id,
         u.profile_picture_url,
-        s.rating as instructor_rating,
-        s.rating_count as instructor_rating_count,
         s.category as category_name
       FROM skills s
       JOIN users u ON s.user_id = u.id
@@ -48,8 +46,8 @@ router.get('/', async (req, res) => {
       prerequisites: skill.prerequisites || null,
       tags: skill.tags || [],
       // Use skill-specific rating, defaulting to 0 if no ratings yet
-      instructor_rating: skill.skill_rating || 0,
-      instructor_rating_count: skill.skill_rating_count || 0
+      instructor_rating: Number(skill.rating) || 0,
+      instructor_rating_count: Number(skill.rating_count) || 0
     }));
     
     res.json(skills);
@@ -360,8 +358,6 @@ router.get('/recommended', authenticateToken, async (req, res) => {
         u.last_name,
         u.student_id,
         u.profile_picture_url,
-        s.rating as instructor_rating,
-        s.rating_count as instructor_rating_count,
         s.category as category_name,
         -- Calculate relevance score
         CASE 
