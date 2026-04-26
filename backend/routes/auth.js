@@ -273,7 +273,6 @@ router.post('/verify-email', authLimiter, [
         );
 
         await welcomeClient.query('COMMIT');
-        console.log(`SUCCESS: Welcome deposit of ${WELCOME_CREDITS} credits created for user ${verifiedUser.id}`);
       } catch (txErr) {
         await welcomeClient.query('ROLLBACK');
         throw txErr;
@@ -756,7 +755,6 @@ router.post('/upload-profile-picture', authenticateToken, uploadProfilePicture.s
     // Upload to Cloudinary if configured
     if (process.env.CLOUDINARY_URL) {
       profilePictureUrl = await uploadToCloudinary(localFilePath, 'nexus/profile-pictures');
-      console.log('Profile picture uploaded to Cloudinary:', profilePictureUrl);
     } else {
       // Fallback to local storage for development
       profilePictureUrl = `/uploads/profile-pictures/${req.file.filename}`;
@@ -775,9 +773,8 @@ router.post('/upload-profile-picture', authenticateToken, uploadProfilePicture.s
         // Extract public_id from Cloudinary URL
         const publicId = oldPictureUrl.split('/').pop().split('.')[0];
         await cloudinary.uploader.destroy(`nexus/profile-pictures/${publicId}`);
-        console.log('Old Cloudinary image deleted:', publicId);
       } catch (deleteError) {
-        console.log('Could not delete old Cloudinary image:', deleteError.message);
+        console.error('Could not delete old Cloudinary image:', deleteError.message);
       }
     }
 
@@ -1134,9 +1131,8 @@ router.delete('/delete-profile-picture', authenticateToken, async (req, res) => 
       try {
         const publicId = pictureUrl.split('/').pop().split('.')[0];
         await cloudinary.uploader.destroy(`nexus/profile-pictures/${publicId}`);
-        console.log('Deleted from Cloudinary:', publicId);
       } catch (cloudinaryError) {
-        console.log('Could not delete from Cloudinary:', cloudinaryError.message);
+        console.error('Could not delete from Cloudinary:', cloudinaryError.message);
       }
     } else {
       // Fallback: delete from local filesystem

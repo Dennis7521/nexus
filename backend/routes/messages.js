@@ -32,8 +32,6 @@ router.post('/', authenticateToken, async (req, res) => {
   }
 });
 
-// OLD ENDPOINT REMOVED - Now using exchange-based conversations endpoint below (line 224)
-
 // Get direct messages with a specific user
 router.get('/direct/:partnerId', authenticateToken, async (req, res) => {
   try {
@@ -104,8 +102,6 @@ router.post('/send', authenticateToken, async (req, res) => {
     const { exchangeId, content } = req.body;
     const senderId = req.user.id;
     
-    console.log('Sending message:', { exchangeId, content, senderId });
-    
     // Verify user is part of this exchange and get receiver
     const exchangeResult = await query(
       'SELECT * FROM exchange_requests WHERE id = $1 AND (requester_id = $2 OR instructor_id = $2)',
@@ -118,8 +114,6 @@ router.post('/send', authenticateToken, async (req, res) => {
     
     const exchange = exchangeResult.rows[0];
     const receiverId = exchange.requester_id === senderId ? exchange.instructor_id : exchange.requester_id;
-    
-    console.log('Message details:', { exchangeId, senderId, receiverId, content });
     
     // Insert message
     const result = await query(
@@ -328,8 +322,6 @@ router.delete('/direct/:partnerId', authenticateToken, async (req, res) => {
     const { partnerId } = req.params;
     const userId = req.user.id;
 
-    console.log('Deleting direct conversation:', { partnerId, userId });
-
     // Delete all direct messages between these two users
     const deleteResult = await query(
       `DELETE FROM messages 
@@ -337,8 +329,6 @@ router.delete('/direct/:partnerId', authenticateToken, async (req, res) => {
        AND ((sender_id = $1 AND receiver_id = $2) OR (sender_id = $2 AND receiver_id = $1))`,
       [userId, partnerId]
     );
-
-    console.log('Deleted direct messages count:', deleteResult.rowCount);
 
     res.json({
       message: 'Direct conversation deleted successfully',

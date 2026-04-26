@@ -144,12 +144,6 @@ router.post('/suspend-account', authenticateAdmin, async (req, res) => {
   }
 });
 
-// Test route to verify admin auth is working
-router.get('/test', authenticateAdmin, (req, res) => {
-  console.log('=== ADMIN TEST ROUTE HIT ===');
-  res.json({ message: 'Admin authentication working', admin: req.admin });
-});
-
 // Create new admin account (admin only)
 router.post('/create-admin', authenticateAdmin, async (req, res) => {
   try {
@@ -199,11 +193,6 @@ router.get('/admins', authenticateAdmin, async (req, res) => {
 
 // Delete user account (admin only)
 router.delete('/delete-account', authenticateAdmin, async (req, res) => {
-  console.log('=== DELETE ACCOUNT ROUTE HIT ===');
-  console.log('Request body:', req.body);
-  console.log('Admin user:', req.admin);
-  console.log('User ID to delete:', req.body.userId);
-  
   const client = await pool.connect();
   
   try {
@@ -215,8 +204,6 @@ router.delete('/delete-account', authenticateAdmin, async (req, res) => {
 
     await client.query('BEGIN');
 
-    console.log(`Starting deletion process for user ID: ${userId}`);
-
     // Helper function to safely delete from a table
     const safeDelete = async (tableName, condition, params) => {
       // Use savepoint to prevent transaction abort on error
@@ -225,7 +212,6 @@ router.delete('/delete-account', authenticateAdmin, async (req, res) => {
         await client.query(`SAVEPOINT ${savepointName}`);
         const result = await client.query(`DELETE FROM ${tableName} WHERE ${condition}`, params);
         await client.query(`RELEASE SAVEPOINT ${savepointName}`);
-        console.log(`Deleted ${result.rowCount} rows from ${tableName}`);
         return result.rowCount;
       } catch (err) {
         // Rollback to savepoint to keep transaction alive
@@ -233,11 +219,9 @@ router.delete('/delete-account', authenticateAdmin, async (req, res) => {
         
         // If table doesn't exist (42P01) or column doesn't exist (42703), just log and continue
         if (err.code === '42P01') {
-          console.log(`Table ${tableName} does not exist, skipping...`);
           return 0;
         }
         if (err.code === '42703') {
-          console.log(`Column in ${tableName} does not exist (${err.message}), skipping...`);
           return 0;
         }
         throw err;
@@ -272,10 +256,9 @@ router.delete('/delete-account', authenticateAdmin, async (req, res) => {
       try {
         if (fs.existsSync(picturePath)) {
           fs.unlinkSync(picturePath);
-          console.log('Deleted profile picture:', picturePath);
         }
       } catch (err) {
-        console.log('Could not delete profile picture:', err.message);
+        console.error('Could not delete profile picture:', err.message);
       }
     }
 
@@ -287,18 +270,12 @@ router.delete('/delete-account', authenticateAdmin, async (req, res) => {
       return res.status(404).json({ error: 'User not found' });
     }
     
-    console.log('Deleted user');
-
     await client.query('COMMIT');
-    console.log(`Successfully deleted user ID: ${userId}`);
 
     res.json({ message: 'Account deleted successfully' });
   } catch (error) {
     await client.query('ROLLBACK');
     console.error('Error deleting account:', error);
-    console.error('Error details:', error.message);
-    console.error('Error code:', error.code);
-    console.error('Error stack:', error.stack);
     res.status(500).json({ 
       error: 'Failed to delete account',
       details: process.env.NODE_ENV === 'development' ? error.message : undefined

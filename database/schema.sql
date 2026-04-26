@@ -1,7 +1,7 @@
 -- ============================================================================
 -- NEXUS Database Schema
 -- PostgreSQL database schema for the skill exchange platform
--- Last updated: 2026-04-19
+-- Last updated: 2026-04-26
 --
 -- This file represents the COMPLETE current schema, incorporating the base
 -- tables plus all migrations from backend/migrations/ and database/migrations/.
@@ -98,6 +98,8 @@ CREATE TABLE skills (
     tags TEXT[],
     credits_required INTEGER DEFAULT 0 CHECK (credits_required >= 0),
     background_image TEXT,
+    rating DECIMAL(3,2) DEFAULT 0.00 CHECK (rating >= 0 AND rating <= 5),
+    rating_count INTEGER DEFAULT 0 CHECK (rating_count >= 0),
     is_active BOOLEAN DEFAULT true,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
@@ -420,6 +422,9 @@ CREATE INDEX idx_exchange_sessions_monitoring ON exchange_sessions(status, sched
 CREATE INDEX idx_exchange_reviews_reviewee ON exchange_reviews(reviewee_id);
 CREATE INDEX idx_exchange_reviews_exchange ON exchange_reviews(exchange_request_id);
 
+-- Skill ratings
+CREATE INDEX idx_skills_rating ON skills(user_id, rating_count) WHERE rating_count > 0;
+
 -- Exchange cycles
 CREATE INDEX idx_exchange_cycles_status ON exchange_cycles(status);
 CREATE INDEX idx_exchange_cycles_length ON exchange_cycles(cycle_length);
@@ -651,6 +656,65 @@ CREATE TRIGGER trigger_update_sync_progress
     FOR EACH ROW
     WHEN (NEW.status = 'completed' AND OLD.status != 'completed')
     EXECUTE FUNCTION update_sync_exchange_progress();
+
+-- Skill-specific rating from both exchange_reviews and cycle_reviews
+CREATE OR REPLACE FUNCTION update_skill_rating_from_review()
+RETURNS TRIGGER AS $$
+DECLARE
+    skill_record RECORD;
+    avg_rating DECIMAL(3,2);
+    review_count INTEGER;
+    user_skill_avg DECIMAL(3,2);
+    user_total_reviews INTEGER;
+BEGIN
+    SELECT s.id, s.user_id INTO skill_record
+    FROM skills s
+    WHERE s.user_id = NEW.reviewee_id
+      AND LOWER(TRIM(s.title)) = LOWER(TRIM(NEW.skill_title))
+    LIMIT 1;
+
+    IF skill_record.id IS NOT NULL THEN
+        SELECT
+            COALESCE(AVG(rating::DECIMAL), 0),
+            COUNT(*)
+        INTO avg_rating, review_count
+        FROM (
+            SELECT rating FROM exchange_reviews
+            WHERE reviewee_id = NEW.reviewee_id
+              AND LOWER(TRIM(skill_title)) = LOWER(TRIM(NEW.skill_title))
+            UNION ALL
+            SELECT rating FROM cycle_reviews
+            WHERE reviewee_id = NEW.reviewee_id
+              AND LOWER(TRIM(skill_title)) = LOWER(TRIM(NEW.skill_title))
+        ) skill_reviews;
+
+        UPDATE skills
+        SET rating = avg_rating, rating_count = review_count
+        WHERE id = skill_record.id;
+    END IF;
+
+    SELECT
+        COALESCE(AVG(rating), 0),
+        COALESCE(SUM(rating_count), 0)
+    INTO user_skill_avg, user_total_reviews
+    FROM skills
+    WHERE user_id = NEW.reviewee_id AND rating_count > 0;
+
+    UPDATE users
+    SET total_rating = user_skill_avg, rating_count = user_total_reviews
+    WHERE id = NEW.reviewee_id;
+
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER update_skill_rating_on_exchange_review
+    AFTER INSERT OR UPDATE ON exchange_reviews
+    FOR EACH ROW EXECUTE FUNCTION update_skill_rating_from_review();
+
+CREATE TRIGGER update_skill_rating_on_cycle_review
+    AFTER INSERT OR UPDATE ON cycle_reviews
+    FOR EACH ROW EXECUTE FUNCTION update_skill_rating_from_review();
 
 -- Unified user rating from both exchange_reviews and cycle_reviews
 CREATE OR REPLACE FUNCTION update_user_rating_from_all_reviews()

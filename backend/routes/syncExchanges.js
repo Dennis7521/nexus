@@ -67,7 +67,6 @@ router.get('/cycles/my', authenticateToken, async (req, res) => {
         if (participants.length > 0) {
           const isDuplicate = await MatchingService.hasCompletedCycle(participants);
           if (isDuplicate) {
-            console.log(`Filtering proposed cycle ${cycle.id}: same participants already completed a cycle`);
             continue;
           }
         }

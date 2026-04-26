@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Search, Send, MoreVertical, Flag, Smile, CheckCheck, Trash2, ExternalLink } from 'lucide-react';
-import EmojiPicker, { type EmojiClickData } from 'emoji-picker-react';
+import Picker from '@emoji-mart/react';
+import data from '@emoji-mart/data';
 import { useAuth } from '../contexts/AuthContext';
 import axios from 'axios';
 import { markMessagesAsRead, markDirectMessagesAsRead } from '../utils/notificationHelpers';
@@ -701,13 +702,15 @@ export const Messages: React.FC = () => {
                         </button>
                         {showEmojiPicker && (
                           <div className="absolute bottom-12 right-0 z-50">
-                            <EmojiPicker
-                              onEmojiClick={(emojiData: EmojiClickData) => {
-                                setNewMessage(prev => prev + emojiData.emoji);
+                            <Picker
+                              data={data}
+                              onEmojiSelect={(emoji: { native: string }) => {
+                                setNewMessage(prev => prev + emoji.native);
                                 setShowEmojiPicker(false);
                               }}
-                              width={300}
-                              height={400}
+                              theme="light"
+                              previewPosition="none"
+                              skinTonePosition="none"
                             />
                           </div>
                         )}

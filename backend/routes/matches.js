@@ -8,9 +8,7 @@ router.get('/async/:skill', authenticateToken, async (req, res) => {
   const limit = Number(req.query.limit || 10);
   if (!skill) return res.status(400).json({ message: 'Skill required' });
   try {
-    console.log(`Finding matches for skill: "${skill}", user: ${req.user.id}, limit: ${limit}`);
     const matches = await MatchingService.findAsyncMatches(req.user.id, skill, { limit });
-    console.log(`Found ${matches.length} matches`);
     res.json({ matches });
   } catch (error) {
     console.error('ERROR: Match endpoint error:', error);
@@ -200,7 +198,6 @@ router.get('/cycles/my', authenticateToken, async (req, res) => {
         if (participants.length > 0) {
           const isDuplicate = await MatchingService.hasCompletedCycle(participants);
           if (isDuplicate) {
-            console.log(`Filtering proposed cycle ${cycle.id}: same participants already completed a cycle`);
             continue;
           }
         }
@@ -289,83 +286,6 @@ router.post('/cycles/:cycleId/respond', authenticateToken, async (req, res) => {
     res.status(500).json({ message: 'Failed to respond to cycle', error: error.message });
   } finally {
     client.release();
-  }
-});
-
-// Debug: Test graph building
-router.get('/debug/graph', authenticateToken, async (req, res) => {
-  const GraphService = require('../services/GraphService');
-  try {
-    const graph = await GraphService.buildSkillGraph(true); // force refresh
-    const nodeCount = Object.keys(graph).length;
-    const edgeCount = Object.values(graph).reduce((sum, edges) => sum + edges.length, 0);
-    res.json({ nodeCount, edgeCount, graph });
-  } catch (error) {
-    console.error('Graph debug error:', error);
-    res.status(500).json({ error: error.message, stack: error.stack });
-  }
-});
-
-// Debug: Run cycle detection and show all found cycles (including 2-person)
-router.get('/debug/cycles', authenticateToken, async (req, res) => {
-  const GraphService = require('../services/GraphService');
-  const { query } = require('../config/database');
-  try {
-    GraphService.clearCache();
-    const graph = await GraphService.buildSkillGraph(true);
-    const nodeCount = Object.keys(graph).length;
-
-    // Get user names for readable output
-    const userIds = Object.keys(graph);
-    let userMap = {};
-    if (userIds.length > 0) {
-      const usersRes = await query(
-        `SELECT id, first_name, last_name, skills_possessing, skills_interested_in FROM users WHERE id = ANY($1)`,
-        [userIds]
-      );
-      usersRes.rows.forEach(u => {
-        userMap[u.id] = {
-          name: `${u.first_name} ${u.last_name}`,
-          possessing: u.skills_possessing,
-          interested_in: u.skills_interested_in
-        };
-      });
-    }
-
-    const allCycles = await GraphService.findAllCycles(5, 200);
-    const cyclesSummary = allCycles.map(cycle => ({
-      length: cycle.length,
-      participants: cycle.map(n => ({
-        userId: n.userId,
-        name: userMap[n.userId]?.name || 'Unknown',
-        teaches: n.skill,
-        learns: n.wantSkill
-      }))
-    }));
-
-    res.json({
-      graphNodeCount: nodeCount,
-      totalCyclesFound: allCycles.length,
-      multiPartyCycles: allCycles.filter(c => c.length >= 3).length,
-      users: userMap,
-      cycles: cyclesSummary
-    });
-  } catch (error) {
-    console.error('Cycle debug error:', error);
-    res.status(500).json({ error: error.message, stack: error.stack });
-  }
-});
-
-// Debug endpoint to see raw candidates
-router.get('/debug/:skill', authenticateToken, async (req, res) => {
-  const GraphService = require('../services/GraphService');
-  const skill = req.params.skill;
-  try {
-    const candidates = await GraphService.findTeachersForSkill(skill, req.user.id, 25);
-    res.json({ skill, userId: req.user.id, candidates });
-  } catch (error) {
-    console.error('Debug endpoint error:', error);
-    res.status(500).json({ error: error.message });
   }
 });
 

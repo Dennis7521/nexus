@@ -375,18 +375,10 @@ router.post('/sessions/:sessionId/verify-code', authenticateToken, async (req, r
     const { sessionId } = req.params;
     const { verificationCode } = req.body;
     
-    console.log('Verify code request:', { sessionId, verificationCode, userId: req.user.id });
-    
     const result = await ExchangeSession.verifyCode(sessionId, verificationCode);
     res.json(result);
   } catch (error) {
     console.error('Error verifying code:', error);
-    console.error('Error stack:', error.stack);
-    console.error('Error details:', {
-      message: error.message,
-      code: error.code,
-      detail: error.detail
-    });
     
     // Return 400 for validation errors, 500 for server errors
     const statusCode = error.message.includes('Invalid') || error.message.includes('not found') ? 400 : 500;

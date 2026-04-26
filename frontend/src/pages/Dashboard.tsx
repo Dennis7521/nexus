@@ -110,8 +110,7 @@ export const Dashboard: React.FC = () => {
   // Refresh dashboard when profile pictures are updated
   useEffect(() => {
     const handleFocus = () => setRefreshKey(prev => prev + 1);
-    const handleProfileUpdate = (event: any) => {
-      console.log('Dashboard: Profile picture updated event received', event.detail);
+    const handleProfileUpdate = (_event: any) => {
       setRefreshKey(prev => prev + 1);
     };
     

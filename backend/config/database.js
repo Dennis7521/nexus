@@ -1,10 +1,6 @@
 const { Pool } = require('pg');
 require('dotenv').config();
 
-// Debug: Log environment variable status (remove after fix)
-console.log('[DB CONFIG] DATABASE_URL exists:', !!process.env.DATABASE_URL);
-console.log('[DB CONFIG] NODE_ENV:', process.env.NODE_ENV);
-
 // Database connection configuration
 // Support both DATABASE_URL (Railway/Prod) and individual vars (local)
 const pool = process.env.DATABASE_URL

@@ -8,9 +8,6 @@ if (process.env.CLOUDINARY_URL) {
   cloudinary.config({
     secure: true
   });
-  console.log('Cloudinary configured successfully');
-} else {
-  console.log('Warning: CLOUDINARY_URL not set, using local storage fallback');
 }
 
 // uploads base directory - use env var for Railway volumes, fallback to local
@@ -58,7 +55,7 @@ const uploadToCloudinary = async (filePath, folder = 'profile-pictures') => {
     try {
       fs.unlinkSync(filePath);
     } catch (unlinkErr) {
-      console.log('Could not delete local temp file:', unlinkErr.message);
+      console.error('Could not delete local temp file:', unlinkErr.message);
     }
     
     return result.secure_url;

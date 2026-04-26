@@ -341,18 +341,14 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   const updateUser = (userData: Partial<User>) => {
     if (user) {
       const updatedUser = { ...user, ...userData };
-setUser(updatedUser);
+      setUser(updatedUser);
     }
   };
 
   const updateProfilePicture = async (imageUrl: string | null) => {
-    console.log('AuthContext: updateProfilePicture called with:', imageUrl);
     if (user) {
-      console.log('AuthContext: Current user profilePictureUrl:', user.profilePictureUrl);
-      
       // Update local state immediately for instant feedback
       const updatedUser = { ...user, profilePictureUrl: imageUrl || undefined };
-      console.log('AuthContext: Setting new user with profilePictureUrl:', updatedUser.profilePictureUrl);
       setUser(updatedUser);
       
       // Refetch user data from backend to ensure sync
@@ -370,12 +366,9 @@ setUser(updatedUser);
           ...prevUser!,
           ...userData
         }));
-        console.log('AuthContext: User data refreshed from backend');
       } catch (error) {
         console.error('AuthContext: Failed to refresh user data:', error);
       }
-    } else {
-      console.log('AuthContext: No user logged in');
     }
   };
 

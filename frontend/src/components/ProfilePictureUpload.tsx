@@ -66,8 +66,6 @@ export const ProfilePictureUpload: React.FC<ProfilePictureUploadProps> = ({
       }
 
       const data = await response.json();
-      console.log('Frontend: Upload response:', data);
-      console.log('Frontend: profilePictureUrl from backend:', data.profilePictureUrl);
       
       // For Cloudinary or any external URLs, use the full URL
       // Only extract pathname for local backend URLs
@@ -86,15 +84,10 @@ export const ProfilePictureUpload: React.FC<ProfilePictureUploadProps> = ({
         imageUrl = data.profilePictureUrl;
       }
       
-      console.log('Frontend: Final imageUrl (proxied):', imageUrl);
-      console.log('Frontend: Calling onImageChange with:', imageUrl);
-      
       // Update preview and notify parent
       setPreviewUrl(imageUrl);
       onImageChange(imageUrl);
       setIsUploading(false);
-      
-      console.log('Frontend: Upload complete, preview updated');
     } catch (error) {
       console.error('Upload error:', error);
       alert('Failed to upload profile picture. Please try again.');
@@ -125,7 +118,6 @@ export const ProfilePictureUpload: React.FC<ProfilePictureUploadProps> = ({
         fileInputRef.current.value = '';
       }
       
-      console.log('Profile picture removed successfully');
     } catch (error) {
       console.error('Remove profile picture error:', error);
       alert('Failed to remove profile picture. Please try again.');

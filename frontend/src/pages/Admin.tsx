@@ -92,8 +92,6 @@ export const Admin: React.FC = () => {
 
     try {
       const token = localStorage.getItem('adminToken');
-      console.log('Deleting user:', selectedUser.id);
-      console.log('Admin token:', token ? 'Present' : 'Missing');
       
       const response = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:5000/api'}/admin/delete-account`, {
         method: 'DELETE',
@@ -106,8 +104,6 @@ export const Admin: React.FC = () => {
         })
       });
       
-      console.log('Delete response status:', response.status);
-
       if (response.ok) {
         success(`Account deleted for ${selectedUser.first_name} ${selectedUser.last_name}`);
         setShowDeleteModal(false);

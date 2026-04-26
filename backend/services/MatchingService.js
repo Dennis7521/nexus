@@ -5,19 +5,15 @@ const MatchingService = {
   findAsyncMatches: async (learnerId, skillName, options = {}) => {
     const limit = Number(options.limit || 10);
 
-    console.log(`MatchingService: Finding candidates for "${skillName}", learner: ${learnerId}`);
     const candidates = await GraphService.findTeachersForSkill(skillName, learnerId, limit * 3);
-    console.log(`Found ${candidates.length} raw candidates:`, candidates.map(c => ({ id: c.user_id, name: `${c.first_name} ${c.last_name}` })));
     
     const scored = candidates.map((c) => ({
       candidate: c,
       score: GraphService.scoreCandidate(c),
     }));
-    console.log(`Scored candidates:`, scored.map(s => ({ name: `${s.candidate.first_name} ${s.candidate.last_name}`, score: s.score })));
 
     scored.sort((a, b) => b.score - a.score);
     const top = scored.slice(0, limit);
-    console.log(`Top ${limit} after sorting:`, top.length);
 
     const results = top.map(({ candidate, score }) => ({
       teacherId: candidate.user_id,
@@ -32,10 +28,8 @@ const MatchingService = {
       timeCommitmentPeriod: candidate.time_commitment_period || null,
       score,
     }));
-    console.log(`Final results to return:`, results.length);
 
     try {
-      console.log(`Attempting to persist ${results.length} matches...`);
       let persistedCount = 0;
       for (const r of results) {
         try {
@@ -68,13 +62,11 @@ const MatchingService = {
           }
           if (result.rows.length > 0) {
             persistedCount++;
-            console.log(`  SUCCESS: Persisted match: ${r.teacherName} for ${r.skillTitle || skillName} (score: ${r.score})`);
           }
         } catch (err) {
           console.error(`  ERROR: Failed to persist match for ${r.teacherName}:`, err.message);
         }
       }
-      console.log(`SUCCESS: Successfully persisted ${persistedCount}/${results.length} matches to skill_matches table`);
     } catch (e) {
       console.error('WARNING: Failed to persist matches:', e.message, e.stack);
     }
@@ -87,30 +79,20 @@ const MatchingService = {
     const maxLength = Number(options.maxLength || 5);
     const minScore = Number(options.minScore || 50);
 
-    console.log(`Finding exchange cycles (max length: ${maxLength}, min score: ${minScore})`);
     const cycles = await GraphService.findAllCycles(maxLength);
-    console.log(`Found ${cycles.length} raw cycles`);
-    if (cycles.length > 0) {
-      console.log('First cycle sample:', JSON.stringify(cycles[0], null, 2));
-    }
 
     // Score and filter cycles
     const scoredCycles = [];
     for (let i = 0; i < cycles.length; i++) {
       const cycle = cycles[i];
-      console.log(`Validating cycle ${i + 1}/${cycles.length}, length: ${cycle.length}`);
       
       const isValid = await GraphService.validateCycle(cycle);
-      console.log(`Cycle ${i + 1} valid: ${isValid}`);
       if (!isValid) continue;
 
       const score = MatchingService.scoreCycle(cycle);
-      console.log(`Cycle ${i + 1} score: ${score} (min required: ${minScore})`);
       
       if (score >= minScore) {
         scoredCycles.push({ cycle, score });
-      } else {
-        console.log(`Cycle ${i + 1} filtered out (score too low)`);
       }
     }
 
@@ -119,7 +101,6 @@ const MatchingService = {
     for (const { cycle, score } of scoredCycles) {
       const isDuplicate = await MatchingService.hasCompletedCycle(cycle);
       if (isDuplicate) {
-        console.log(`Cycle filtered: same participants already completed a cycle together`);
         continue;
       }
       uniqueCycles.push({ cycle, score });
@@ -127,7 +108,6 @@ const MatchingService = {
 
     // Sort by score descending
     uniqueCycles.sort((a, b) => b.score - a.score);
-    console.log(`${uniqueCycles.length} valid cycles after filtering completed duplicates`);
 
     return uniqueCycles;
   },
@@ -236,7 +216,6 @@ const MatchingService = {
       }
     }
 
-    console.log(`SUCCESS: Persisted ${persistedCount.length} cycles to database`);
     return persistedCount;
   },
 };

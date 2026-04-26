@@ -21,7 +21,6 @@ export const Login: React.FC = () => {
     e.preventDefault();
     
     if (isNavigatingRef.current) {
-      console.log('WARNING: Already navigating, skipping...');
       return;
     }
     
@@ -33,7 +32,6 @@ export const Login: React.FC = () => {
       
       // Check if user must change password
       if (result && result.mustChangePassword) {
-        console.log('Must change password - redirecting to /change-password');
         isNavigatingRef.current = true;
         navigate('/change-password', { replace: true });
         return;

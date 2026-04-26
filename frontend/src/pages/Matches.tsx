@@ -88,8 +88,6 @@ export default function Matches() {
       
       // First, trigger async matching for each skill the user is interested in
       if (user?.skillsInterestedIn && user.skillsInterestedIn.length > 0) {
-        console.log('Generating matches for skills:', user.skillsInterestedIn);
-        
         for (const skill of user.skillsInterestedIn) {
           try {
             await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:5000/api'}/matches/async/${encodeURIComponent(skill)}`, {

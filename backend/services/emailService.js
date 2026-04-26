@@ -11,8 +11,6 @@ class EmailService {
     
     this.resend = new Resend(process.env.RESEND_API_KEY);
     this.fromEmail = process.env.RESEND_FROM_EMAIL || 'NEXUS <onboarding@resend.dev>';
-    
-    console.log('SUCCESS: Resend email service initialized');
   }
 
   // Send OTP email
@@ -36,7 +34,6 @@ class EmailService {
         };
       }
 
-      console.log('SUCCESS: OTP email sent successfully:', data.id);
       return { 
         success: true, 
         messageId: data.id 
@@ -188,7 +185,6 @@ class EmailService {
         };
       }
 
-      console.log('SUCCESS: Password reset email sent successfully:', data.id);
       return { 
         success: true, 
         messageId: data.id 
@@ -328,7 +324,6 @@ class EmailService {
         return { success: false, error: error.message };
       }
 
-      console.log('SUCCESS: Purchase receipt email sent:', data.id);
       return { success: true, messageId: data.id };
     } catch (error) {
       console.error('ERROR: Failed to send purchase receipt email:', error);
@@ -443,7 +438,6 @@ class EmailService {
         return { success: false, error: error.message };
       }
 
-      console.log('SUCCESS: Welcome deposit email sent:', data.id);
       return { success: true, messageId: data.id };
     } catch (error) {
       console.error('ERROR: Failed to send welcome deposit email:', error);
@@ -543,7 +537,6 @@ class EmailService {
         console.error('ERROR: RESEND_API_KEY not configured');
         return false;
       }
-      console.log('SUCCESS: Resend email service is configured');
       return true;
     } catch (error) {
       console.error('ERROR: Email service configuration error:', error);

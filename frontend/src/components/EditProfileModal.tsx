@@ -161,8 +161,6 @@ export const EditProfileModal: React.FC<EditProfileModalProps> = ({ isOpen, onCl
   const handleSave = async () => {
     setIsSaving(true);
     try {
-      console.log('Sending profile update:', formData);
-      
       // Send update to backend API
       const response = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:5000/api'}/auth/profile`, {
         method: 'PUT',
@@ -172,9 +170,6 @@ export const EditProfileModal: React.FC<EditProfileModalProps> = ({ isOpen, onCl
         },
         body: JSON.stringify(formData)
       });
-
-      console.log('Response status:', response.status);
-      console.log('Response headers:', response.headers);
 
       if (!response.ok) {
         let errorMessage = `HTTP ${response.status}`;
@@ -187,9 +182,7 @@ export const EditProfileModal: React.FC<EditProfileModalProps> = ({ isOpen, onCl
         throw new Error(errorMessage);
       }
 
-      // Get response text first to debug
       const responseText = await response.text();
-      console.log('Raw response:', responseText);
 
       if (!responseText) {
         throw new Error('Empty response from server');
@@ -199,15 +192,11 @@ export const EditProfileModal: React.FC<EditProfileModalProps> = ({ isOpen, onCl
       try {
         data = JSON.parse(responseText);
       } catch (jsonError) {
-        console.error('Failed to parse JSON response:', jsonError);
-        console.error('Response text was:', responseText);
         throw new Error('Invalid JSON response from server');
       }
       
       // Update user context with response data
       updateUser(data.user);
-      
-      console.log('Profile updated successfully:', data.user);
       onClose();
     } catch (error: any) {
       console.error('Failed to update profile:', error);

@@ -208,7 +208,6 @@ async function processPurchase(purchase, paymentIntentId) {
     );
 
     await client.query('COMMIT');
-    console.log(`SUCCESS: Credited ${purchase.credits_purchased} credits to user ${purchase.user_id}`);
 
     const userResult = await client.query(
       'SELECT email, first_name, last_name FROM users WHERE id = $1',

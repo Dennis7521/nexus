@@ -178,18 +178,15 @@ class ExchangeSession {
    * Verify code and confirm for learner
    */
   static async verifyCode(sessionId, verificationCode) {
-    console.log('verifyCode called with:', { sessionId, verificationCode });
     const client = await pool.connect();
     try {
       await client.query('BEGIN');
       
       // Lock session row
-      console.log('Querying session:', sessionId);
       const sessionResult = await client.query(
         'SELECT * FROM exchange_sessions WHERE id = $1 FOR UPDATE',
         [sessionId]
       );
-      console.log('Session query result:', sessionResult.rows.length, 'rows');
       
       if (sessionResult.rows.length === 0) {
         throw new Error('Session not found');
@@ -200,11 +197,6 @@ class ExchangeSession {
       // Validate code (case-insensitive, trim whitespace)
       const submittedCode = verificationCode.toUpperCase().trim();
       const storedCode = session.verification_code;
-      
-      console.log('Code verification attempt:');
-      console.log('  Submitted:', submittedCode);
-      console.log('  Stored:', storedCode);
-      console.log('  Match:', submittedCode === storedCode);
       
       if (storedCode !== submittedCode) {
         // Track attempts for analytics but don't limit them

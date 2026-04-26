@@ -6,13 +6,9 @@ export const ProfileManager: React.FC = () => {
   const [users] = useState<any[]>([]);
   const [refreshKey, setRefreshKey] = useState(0);
 
-  const handleProfilePictureChange = (userInitials: string, imageUrl: string | null) => {
-    console.log('ProfileManager: Saving picture for', userInitials, imageUrl ? 'with image' : 'removing image');
+  const handleProfilePictureChange = (_userInitials: string, _imageUrl: string | null) => {
     // Force re-render to show updated pictures
-    setRefreshKey(prev => {
-      console.log('ProfileManager: Refresh triggered, new key:', prev + 1);
-      return prev + 1;
-    });
+    setRefreshKey(prev => prev + 1);
   };
 
   return (

@@ -51,8 +51,6 @@ export const EditSkill: React.FC = () => {
         const skill = skills.find((s: any) => s.id.toString() === skillId);
         
         if (skill) {
-          console.log('Found skill:', skill);
-          console.log('Tags raw value:', skill.tags, 'Type:', typeof skill.tags);
           // Parse duration_per_week (e.g., "2 hrs/week")
           const durationMatch = skill.duration_per_week?.match(/(\d+)\s*hrs?\/(\w+)/);
           const hours = durationMatch ? durationMatch[1] : '2';

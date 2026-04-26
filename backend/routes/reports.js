@@ -12,18 +12,8 @@ router.post('/', authenticateToken, async (req, res) => {
     const reporterId = req.user.id;
     const { reportedUserId, exchangeId, reason, description } = req.body;
 
-    console.log('Report submission:', {
-      reporterId,
-      reportedUserId,
-      exchangeId,
-      reason,
-      reporterIdType: typeof reporterId,
-      reportedUserIdType: typeof reportedUserId
-    });
-
     // Validation
     if (!reportedUserId || !reason) {
-      console.log('ERROR: Validation failed: Missing required fields');
       return res.status(400).json({ 
         error: 'Reported user ID and reason are required' 
       });
@@ -31,7 +21,6 @@ router.post('/', authenticateToken, async (req, res) => {
 
     // Prevent self-reporting (convert both to strings for comparison)
     if (String(reporterId) === String(reportedUserId)) {
-      console.log('ERROR: Self-reporting attempt detected');
       return res.status(400).json({ 
         error: 'You cannot report yourself' 
       });
