@@ -385,7 +385,7 @@ export default function ExchangeWorkspace() {
                   Each completed session releases {creditsPerSession.toFixed(3)} credits from escrow
                 </p>
               </div>
-              {isMentor && exchange.status === 'accepted' && sessions.length < exchange.session_count && (
+              {isMentor && (exchange.status === 'accepted' || exchange.status === 'in_progress') && sessions.length < exchange.session_count && (
                 <button
                   onClick={() => setShowCreateSession(!showCreateSession)}
                   className="px-5 py-2.5 rounded-xl font-semibold text-sm transition-all duration-200"
