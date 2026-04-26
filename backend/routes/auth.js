@@ -32,7 +32,7 @@ const cookieOptions = {
 // Rate limiting for auth routes - production ready
 const authLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 5, // 5 attempts per 15 minutes
+  max: 20, // 20 attempts per 15 minutes
   message: 'Too many authentication attempts, please try again later.',
   standardHeaders: true,
   legacyHeaders: false,
@@ -42,7 +42,7 @@ const authLimiter = rateLimit({
 // Stricter rate limiting for OTP requests
 const otpLimiter = rateLimit({
   windowMs: 60 * 60 * 1000, // 1 hour
-  max: 3, // 3 OTP requests per hour per IP
+  max: 10, // 10 OTP requests per hour per IP
   message: 'Too many OTP requests. Please wait before requesting another code.',
   standardHeaders: true,
   legacyHeaders: false,
@@ -172,7 +172,7 @@ router.post('/register', otpLimiter, registerValidation, async (req, res) => {
 
     // Check OTP rate limiting
     const otpAttempts = await OTP.getOTPAttempts(email, 60);
-    if (otpAttempts >= 3) {
+    if (otpAttempts >= 10) {
       return res.status(429).json({
         message: 'Too many OTP requests. Please wait before requesting another code.'
       });
@@ -359,19 +359,10 @@ router.post('/resend-otp', otpLimiter, [
 
     // Check OTP rate limiting (per email, not just IP)
     const otpAttempts = await OTP.getOTPAttempts(email, 60);
-    if (otpAttempts >= 3) {
+    if (otpAttempts >= 10) {
       return res.status(429).json({
         message: 'Too many OTP requests for this email. Please wait 1 hour before requesting another code.',
         retryAfter: 3600 // seconds
-      });
-    }
-
-    // Check if there's a recent OTP (prevent spam within 1 minute)
-    const recentOtpAttempts = await OTP.getOTPAttempts(email, 1);
-    if (recentOtpAttempts >= 1) {
-      return res.status(429).json({
-        message: 'Please wait at least 1 minute before requesting a new code.',
-        retryAfter: 60 // seconds
       });
     }
 

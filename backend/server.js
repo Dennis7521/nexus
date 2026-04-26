@@ -26,7 +26,7 @@ if (process.env.NODE_ENV === 'production') {
 
 const limiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
-  max: process.env.NODE_ENV === 'production' ? 300 : 1000, // stricter in prod
+  max: process.env.NODE_ENV === 'production' ? 500 : 2000, // stricter in prod
   message: 'Too many requests from this IP, please try again later.',
   standardHeaders: true,
   legacyHeaders: false,
