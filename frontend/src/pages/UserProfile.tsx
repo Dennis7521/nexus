@@ -143,7 +143,7 @@ export const UserProfile: React.FC = () => {
 
   const initials = `${userData.firstName?.[0] || ''}${userData.lastName?.[0] || ''}`;
   const averageRating = userData.ratingCount > 0 
-    ? (parseFloat(userData.totalRating) / userData.ratingCount).toFixed(1) 
+    ? parseFloat(userData.totalRating).toFixed(1) 
     : '0.0';
 
   return (
