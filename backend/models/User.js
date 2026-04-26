@@ -243,6 +243,7 @@ class User {
         s.location,
         s.credits_required,
         COALESCE(s.rating, 0) as rating,
+        COALESCE(s.rating_count, 0) as rating_count,
         s.is_active,
         0 as students_count
        FROM skills s

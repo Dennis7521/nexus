@@ -15,7 +15,8 @@ router.get('/', async (req, res) => {
         u.last_name,
         u.student_id,
         u.profile_picture_url,
-        u.total_rating as instructor_rating,
+        s.rating as instructor_rating,
+        s.rating_count as instructor_rating_count,
         s.category as category_name
       FROM skills s
       JOIN users u ON s.user_id = u.id
@@ -45,7 +46,10 @@ router.get('/', async (req, res) => {
       time_commitment_hours: skill.time_commitment_hours || parseInt(skill.duration_per_week) || 2,
       time_commitment_period: skill.time_commitment_period || 'week',
       prerequisites: skill.prerequisites || null,
-      tags: skill.tags || []
+      tags: skill.tags || [],
+      // Use skill-specific rating, defaulting to 0 if no ratings yet
+      instructor_rating: skill.skill_rating || 0,
+      instructor_rating_count: skill.skill_rating_count || 0
     }));
     
     res.json(skills);
@@ -265,7 +269,7 @@ router.get('/recommendations', authenticateToken, async (req, res) => {
     let result;
     if (interestedIn.length > 0) {
       result = await query(
-        `SELECT s.*, u.first_name, u.last_name, u.total_rating as instructor_rating
+        `SELECT s.*, u.first_name, u.last_name, s.rating as instructor_rating, s.rating_count as instructor_rating_count
          FROM skills s
          JOIN users u ON s.user_id = u.id
          WHERE s.is_active = true
@@ -274,17 +278,17 @@ router.get('/recommendations', authenticateToken, async (req, res) => {
              SELECT 1 FROM unnest($2::text[]) interest
              WHERE LOWER(TRIM(s.title)) LIKE LOWER(TRIM('%' || interest || '%'))
            )
-         ORDER BY u.total_rating DESC NULLS LAST
+         ORDER BY s.rating DESC NULLS LAST
          LIMIT $3`,
         [userId, interestedIn, count]
       );
     } else {
       result = await query(
-        `SELECT s.*, u.first_name, u.last_name, u.total_rating as instructor_rating
+        `SELECT s.*, u.first_name, u.last_name, s.rating as instructor_rating, s.rating_count as instructor_rating_count
          FROM skills s
          JOIN users u ON s.user_id = u.id
          WHERE s.is_active = true AND s.user_id <> $1
-         ORDER BY u.total_rating DESC NULLS LAST
+         ORDER BY s.rating DESC NULLS LAST
          LIMIT $2`,
         [userId, count]
       );
@@ -356,7 +360,8 @@ router.get('/recommended', authenticateToken, async (req, res) => {
         u.last_name,
         u.student_id,
         u.profile_picture_url,
-        u.total_rating as instructor_rating,
+        s.rating as instructor_rating,
+        s.rating_count as instructor_rating_count,
         s.category as category_name,
         -- Calculate relevance score
         CASE 

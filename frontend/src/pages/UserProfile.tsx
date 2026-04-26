@@ -20,6 +20,7 @@ interface UserSkill {
   location: string;
   credits_required: number;
   rating: string;
+  rating_count: number;
   is_active: boolean;
   students_count: string;
 }
@@ -385,8 +386,14 @@ export const UserProfile: React.FC = () => {
                             <span>{skill.location}</span>
                           </div>
                           <div className="flex items-center gap-1" style={{ color: 'var(--warning)' }}>
-                            <Star className="w-3 h-3 fill-current" />
-                            <span>{skill.rating}</span>
+                            {skill.rating_count > 0 ? (
+                              <>
+                                <Star className="w-3 h-3 fill-current" />
+                                <span>{Number(skill.rating).toFixed(1)}</span>
+                              </>
+                            ) : (
+                              <span className="text-xs" style={{ color: 'var(--gray-400)' }}>No ratings</span>
+                            )}
                           </div>
                         </div>
                       </div>
