@@ -222,7 +222,7 @@ router.get('/conversations', authenticateToken, async (req, res) => {
        JOIN users u1 ON er.requester_id = u1.id
        JOIN users u2 ON er.instructor_id = u2.id
        WHERE (er.requester_id = $1 OR er.instructor_id = $1) 
-         AND er.status IN ('accepted', 'completed')
+         AND er.status IN ('accepted', 'in_progress', 'completed')
        ORDER BY er.id, er.created_at DESC`,
       [userId]
     );
