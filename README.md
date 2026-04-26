@@ -6,21 +6,28 @@ NEXUS is an intelligent, non-monetary skill-exchange platform designed specifica
 
 ```
 Final Year Project/
-├── frontend/          # React 18 + TypeScript + Vite + TailwindCSS
-├── backend/           # Node.js + Express.js REST API
+├── frontend/          # React 19 + TypeScript + Vite + TailwindCSS (Vercel)
+├── backend/           # Node.js + Express 5 REST API (Railway)
+│   ├── config/        # DB pool, Stripe, startup migrations
+│   ├── jobs/          # Cron-driven matching & cycle-detection jobs
+│   ├── middleware/    # auth, adminAuth, upload (Multer)
+│   ├── models/        # User, Exchange, ExchangeSession, OTP, Report, …
+│   ├── routes/        # auth, skills, exchanges, sync-exchanges, admin, …
+│   └── services/      # email, payments, cloudinary
 ├── database/          # PostgreSQL schema, seeds & migrations
 └── README.md
 ```
 
 ## Tech Stack
 
-- **Frontend**: React 18, TypeScript, Vite, TailwindCSS, Lucide Icons
-- **Backend**: Node.js, Express.js, PostgreSQL (pg), JWT
-- **Payments**: Stripe (Credit Store)
+- **Frontend**: React 19, TypeScript, Vite, TailwindCSS, MUI, Headless UI, Lucide Icons, emoji-mart
+- **Backend**: Node.js (≥18), Express 5, PostgreSQL (pg), JWT (httpOnly cookies)
+- **Payments**: Stripe (Credit Store) with webhook signature verification
 - **Email**: Resend.com (OTP verification, password reset emails)
 - **Video Meetings**: Jitsi (auto-generated anonymous rooms)
-- **File Storage**: Cloudinary (profile pictures) + local disk via Multer (academic transcripts)
+- **File Storage**: Cloudinary (profile pictures) + local disk / Railway volume via Multer (academic transcripts)
 - **Scheduling**: node-cron (background matching jobs)
+- **Deployment**: Railway (backend + PostgreSQL), Vercel (frontend)
 
 ## Core Features
 
@@ -334,7 +341,8 @@ Final Year Project/
 ## Security Features
 
 - Password requirements: 8+ chars, uppercase, lowercase, number
-- Rate limiting: configurable per environment (300 req/15min production, 1000 dev)
+- Rate limiting: configurable per environment (500 req/15min production, 2000 dev)
+- JWT delivered via httpOnly, SameSite cookies (not localStorage)
 - Helmet security headers
 - CORS: strict origin allowlist (production domain only)
 - JWT token expiration (configurable)
@@ -345,6 +353,14 @@ Final Year Project/
 - SQL injection prevention (parameterized queries)
 - Directory traversal prevention on transcript file serving
 - Escrow audit trail for all admin credit actions
+
+## Deployment
+
+- **Backend**: Deployed on Railway. Uses `Procfile` (`web: node server.js`) and `.railwayignore`. Configure all `backend/.env.example` variables (DB URL, JWT secret, Resend, Stripe, Cloudinary, `FRONTEND_URL`, `UPLOADS_DIR` for Railway volume).
+- **Frontend**: Deployed on Vercel from the `frontend/` directory. Set `VITE_API_URL` to the Railway backend URL in Vercel project env.
+- **CORS**: `backend/server.js` allowlists `localhost:5173`, the Vercel production domain, and any `*.vercel.app` preview build. Add custom domains via the `FRONTEND_URL` env var.
+- **Stripe Webhook**: Point `/api/payments/webhook` at the Railway URL and register the signing secret as `STRIPE_WEBHOOK_SECRET`.
+- **Startup Migrations**: `config/migrations.js` runs idempotent schema migrations on every boot before the cron jobs start.
 
 ## License
 This project is part of a BSc Computer Science Final Year Project at the University of Botswana.
