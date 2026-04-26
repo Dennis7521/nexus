@@ -26,7 +26,7 @@ Final Year Project/
 
 ### Authentication & Security
 - **Institutional Email Only**: University of Botswana students only (`studentID@ub.ac.bw`)
-- **Student ID Validation**: 9-digit format (2022XXXXX)
+- **Student ID Validation**: 9-10 digit format (2022XXXXX)
 - **OTP Email Verification**: 6-digit codes via Resend.com
 - **Password Reset**: Self-service OTP-based password reset (forgot password → verify code → set new password)
 - **JWT Authentication**: Secure token-based sessions with configurable expiration
